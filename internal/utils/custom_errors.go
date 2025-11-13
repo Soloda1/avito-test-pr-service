@@ -11,6 +11,7 @@ var (
 	ErrAlreadyExists   = errors.New("already exists")
 	ErrInvalidArgument = errors.New("invalid argument")
 	// PR specific
+	ErrAlreadyMerged           = errors.New("pr already merged")
 	ErrPRExists                = errors.New("pr already exists")
 	ErrPRNotFound              = errors.New("pr not found")
 	ErrTooManyReviewers        = errors.New("too many reviewers")

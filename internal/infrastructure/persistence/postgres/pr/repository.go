@@ -227,7 +227,7 @@ func (r *PRRepository) UpdateStatus(ctx context.Context, prID uuid.UUID, status 
 				r.log.Error("UpdateStatus exists check failed", "pr_id", prID, "err", err2)
 				return err2
 			}
-			return nil
+			return utils.ErrAlreadyMerged
 		}
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
