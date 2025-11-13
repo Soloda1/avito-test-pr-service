@@ -1,3 +1,8 @@
 package models
 
-// TODO: define PR status enum / type
+type PRStatus string
+
+const (
+	PRStatusOPEN   PRStatus = "OPEN"
+	PRStatusMERGED PRStatus = "MERGED"
+)
