@@ -26,12 +26,12 @@ func NewPostgresUOW(pool *pgxpool.Pool, log ports.Logger) uow.UnitOfWork {
 	return &PostgresUnitOfWork{pool: pool, log: log}
 }
 
-func (uow *PostgresUnitOfWork) Begin(ctx context.Context) (uow.Transaction, error) {
-	tx, err := uow.pool.Begin(ctx)
+func (puow *PostgresUnitOfWork) Begin(ctx context.Context) (uow.Transaction, error) {
+	tx, err := puow.pool.Begin(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error beginning transaction: %w", err)
 	}
-	return &PostgresTransaction{tx: tx, log: uow.log}, nil
+	return &PostgresTransaction{tx: tx, log: puow.log}, nil
 }
 
 type PostgresTransaction struct {

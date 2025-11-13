@@ -3,7 +3,7 @@ package user_repository
 import (
 	"avito-test-pr-service/internal/domain/models"
 	ports "avito-test-pr-service/internal/domain/ports/output"
-	"avito-test-pr-service/internal/domain/ports/output/user"
+	user_port "avito-test-pr-service/internal/domain/ports/output/user"
 	"avito-test-pr-service/internal/infrastructure/persistence/postgres"
 	"context"
 	"errors"
@@ -16,7 +16,7 @@ type UserRepository struct {
 	log     ports.Logger
 }
 
-func NewUserRepository(querier postgres.Querier, log ports.Logger) user.UserRepository {
+func NewUserRepository(querier postgres.Querier, log ports.Logger) user_port.UserRepository {
 	return &UserRepository{querier: querier, log: log}
 }
 

@@ -3,7 +3,7 @@ package team_repository
 import (
 	"avito-test-pr-service/internal/domain/models"
 	ports "avito-test-pr-service/internal/domain/ports/output"
-	"avito-test-pr-service/internal/domain/ports/output/team"
+	team_port "avito-test-pr-service/internal/domain/ports/output/team"
 	"avito-test-pr-service/internal/infrastructure/persistence/postgres"
 	"context"
 	"errors"
@@ -16,7 +16,7 @@ type TeamRepository struct {
 	log     ports.Logger
 }
 
-func NewTeamRepository(querier postgres.Querier, log ports.Logger) team.TeamRepository {
+func NewTeamRepository(querier postgres.Querier, log ports.Logger) team_port.TeamRepository {
 	return &TeamRepository{querier: querier, log: log}
 }
 

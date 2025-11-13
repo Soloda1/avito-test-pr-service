@@ -3,12 +3,13 @@ package pr_repository
 import (
 	"avito-test-pr-service/internal/domain/models"
 	ports "avito-test-pr-service/internal/domain/ports/output"
-	"avito-test-pr-service/internal/domain/ports/output/pr"
+	pr_port "avito-test-pr-service/internal/domain/ports/output/pr"
 	"avito-test-pr-service/internal/infrastructure/persistence/postgres"
 	"context"
 	"errors"
-	"github.com/google/uuid"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type PRRepository struct {
@@ -16,7 +17,7 @@ type PRRepository struct {
 	log     ports.Logger
 }
 
-func NewPRRepository(querier postgres.Querier, log ports.Logger) pr.PRRepository {
+func NewPRRepository(querier postgres.Querier, log ports.Logger) pr_port.PRRepository {
 	return &PRRepository{querier: querier, log: log}
 }
 
