@@ -7,6 +7,7 @@ import (
 	"avito-test-pr-service/internal/infrastructure/persistence/postgres"
 	"avito-test-pr-service/internal/utils"
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -39,7 +40,8 @@ func (r *UserRepository) CreateUser(ctx context.Context, user *models.User) erro
 	`
 	_, err := r.querier.Exec(ctx, q, args)
 	if err != nil {
-		if pgErr, ok := err.(*pgconn.PgError); ok {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
 			if pgErr.Code == "23505" { // unique_violation
 				return utils.ErrUserExists
 			}
@@ -59,7 +61,7 @@ func (r *UserRepository) GetUserByID(ctx context.Context, id uuid.UUID) (*models
 	row := r.querier.QueryRow(ctx, q, pgx.NamedArgs{"id": id})
 	var u models.User
 	if err := row.Scan(&u.ID, &u.Name, &u.IsActive, &u.CreatedAt, &u.UpdatedAt); err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, utils.ErrUserNotFound
 		}
 		r.log.Error("GetUserByID failed", "user_id", id, "err", err)
@@ -124,7 +126,7 @@ func (r *UserRepository) GetTeamIDByUserID(ctx context.Context, userID uuid.UUID
 	row := r.querier.QueryRow(ctx, q, pgx.NamedArgs{"user_id": userID})
 	var teamID uuid.UUID
 	if err := row.Scan(&teamID); err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return uuid.Nil, utils.ErrUserNoTeam
 		}
 		r.log.Error("GetTeamIDByUserID failed", "user_id", userID, "err", err)
