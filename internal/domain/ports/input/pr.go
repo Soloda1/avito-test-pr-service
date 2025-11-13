@@ -1,3 +1,15 @@
 package input
 
-// TODO: define PR input port (use-case interface)
+import (
+	"avito-test-pr-service/internal/domain/models"
+	"context"
+	"github.com/google/uuid"
+)
+
+type PRInputPort interface {
+	CreatePR(ctx context.Context, authorID uuid.UUID, title string) (*models.PullRequest, error)
+	ReassignReviewer(ctx context.Context, prID uuid.UUID, oldReviewerID uuid.UUID) (*models.PullRequest, error)
+	MergePR(ctx context.Context, prID uuid.UUID) (*models.PullRequest, error)
+	GetPR(ctx context.Context, prID uuid.UUID) (*models.PullRequest, error)
+	ListPRsByAssignee(ctx context.Context, reviewerID uuid.UUID, status *models.PRStatus) ([]*models.PullRequest, error) // status опциональный (nil = все)
+}
