@@ -1,5 +1,3 @@
-
-
 DROP TABLE IF EXISTS pr_reviewers;
 DROP TABLE IF EXISTS prs;
 DROP TABLE IF EXISTS team_members;
