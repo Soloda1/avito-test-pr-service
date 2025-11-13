@@ -114,7 +114,7 @@ func (r *TeamRepository) AddMember(ctx context.Context, teamID uuid.UUID, userID
 	row := r.querier.QueryRow(ctx, q, pgx.NamedArgs{"team_id": teamID, "user_id": userID})
 	var returnedTeamID uuid.UUID
 	if err := row.Scan(&returnedTeamID); err != nil {
-		if errors.Is(err, pgx.ErrNoRows) { // не должно случаться при RETURNING, но на всякий случай
+		if errors.Is(err, pgx.ErrNoRows) {
 			return utils.ErrNotFound
 		}
 		var pgErr *pgconn.PgError
