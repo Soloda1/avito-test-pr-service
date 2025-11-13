@@ -23,15 +23,21 @@ func NewUserRepository(querier postgres.Querier, log ports.Logger) user_port.Use
 }
 
 func (r *UserRepository) CreateUser(ctx context.Context, user *models.User) error {
+	args := pgx.NamedArgs{
+		"id":        user.ID,
+		"name":      user.Name,
+		"is_active": user.IsActive,
+	}
+
 	const q = `
 		INSERT INTO users (id, name, is_active, created_at, updated_at)
-		VALUES ($1, $2, $3, now(), now())
+		VALUES (@id, @name, @is_active, now(), now())
 		ON CONFLICT (id) DO UPDATE
 		SET name = EXCLUDED.name,
 			is_active = EXCLUDED.is_active,
 			updated_at = now();
 	`
-	_, err := r.querier.Exec(ctx, q, user.ID, user.Name, user.IsActive)
+	_, err := r.querier.Exec(ctx, q, args)
 	if err != nil {
 		if pgErr, ok := err.(*pgconn.PgError); ok {
 			if pgErr.Code == "23505" { // unique_violation
@@ -48,10 +54,10 @@ func (r *UserRepository) GetUserByID(ctx context.Context, id uuid.UUID) (*models
 	const q = `
 		SELECT id, name, is_active, created_at, updated_at
 		FROM users
-		WHERE id = $1;
+		WHERE id = @id;
 	`
+	row := r.querier.QueryRow(ctx, q, pgx.NamedArgs{"id": id})
 	var u models.User
-	row := r.querier.QueryRow(ctx, q, id)
 	if err := row.Scan(&u.ID, &u.Name, &u.IsActive, &u.CreatedAt, &u.UpdatedAt); err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, utils.ErrUserNotFound
@@ -65,11 +71,12 @@ func (r *UserRepository) GetUserByID(ctx context.Context, id uuid.UUID) (*models
 func (r *UserRepository) UpdateUserActive(ctx context.Context, id uuid.UUID, isActive bool) error {
 	const q = `
 		UPDATE users
-		SET is_active = $1,
+		SET is_active = @is_active,
 			updated_at = now()
-		WHERE id = $2;
+		WHERE id = @id;
 	`
-	tag, err := r.querier.Exec(ctx, q, isActive, id)
+	args := pgx.NamedArgs{"is_active": isActive, "id": id}
+	tag, err := r.querier.Exec(ctx, q, args)
 	if err != nil {
 		r.log.Error("UpdateUserActive failed", "user_id", id, "err", err)
 		return err
@@ -111,11 +118,12 @@ func (r *UserRepository) GetTeamIDByUserID(ctx context.Context, userID uuid.UUID
 	const q = `
 		SELECT team_id
 		FROM team_members
-		WHERE user_id = $1
+		WHERE user_id = @user_id
 		LIMIT 1;
 	`
+	row := r.querier.QueryRow(ctx, q, pgx.NamedArgs{"user_id": userID})
 	var teamID uuid.UUID
-	if err := r.querier.QueryRow(ctx, q, userID).Scan(&teamID); err != nil {
+	if err := row.Scan(&teamID); err != nil {
 		if err == pgx.ErrNoRows {
 			return uuid.Nil, utils.ErrUserNoTeam
 		}
@@ -130,9 +138,9 @@ func (r *UserRepository) ListActiveMembersByTeamID(ctx context.Context, teamID u
 		SELECT u.id
 		FROM users u
 		JOIN team_members tm ON u.id = tm.user_id
-		WHERE tm.team_id = $1 AND u.is_active = true;
+		WHERE tm.team_id = @team_id AND u.is_active = true;
 	`
-	rows, err := r.querier.Query(ctx, q, teamID)
+	rows, err := r.querier.Query(ctx, q, pgx.NamedArgs{"team_id": teamID})
 	if err != nil {
 		r.log.Error("ListActiveMembersByTeamID query failed", "team_id", teamID, "err", err)
 		return nil, err
