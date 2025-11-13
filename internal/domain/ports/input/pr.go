@@ -3,6 +3,7 @@ package input
 import (
 	"avito-test-pr-service/internal/domain/models"
 	"context"
+
 	"github.com/google/uuid"
 )
 
@@ -11,5 +12,5 @@ type PRInputPort interface {
 	ReassignReviewer(ctx context.Context, prID uuid.UUID, oldReviewerID uuid.UUID) (*models.PullRequest, error)
 	MergePR(ctx context.Context, prID uuid.UUID) (*models.PullRequest, error)
 	GetPR(ctx context.Context, prID uuid.UUID) (*models.PullRequest, error)
-	ListPRsByAssignee(ctx context.Context, reviewerID uuid.UUID, status *models.PRStatus) ([]*models.PullRequest, error) // status опциональный (nil = все)
+	ListPRsByAssignee(ctx context.Context, reviewerID uuid.UUID, status *models.PRStatus) ([]*models.PullRequest, error)
 }
