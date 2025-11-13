@@ -6,15 +6,15 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -o /app/post-service ./cmd/server
+RUN CGO_ENABLED=0 GOOS=linux go build -o /app/pr-service ./cmd/server
 
 FROM alpine:latest
 
 WORKDIR /app
 
-COPY --from=builder /app/post-service .
-COPY --from=builder /app/migrations ./migrations
+COPY --from=builder /app/pr-service .
+COPY --from=builder /app/config ./config
 
-EXPOSE 50053
+EXPOSE 8080
 
-CMD ["./post-service"]
+CMD ["./pr-service"]
