@@ -33,7 +33,6 @@ func (r *UserRepository) CreateUser(ctx context.Context, user *models.User) erro
 	const q = `
 		INSERT INTO users (id, name, is_active, created_at, updated_at)
 		VALUES (@id, @name, @is_active, now(), now())
-		
 	`
 	_, err := r.querier.Exec(ctx, q, args)
 	if err != nil {

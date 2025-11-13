@@ -8,6 +8,7 @@ import (
 	"avito-test-pr-service/internal/utils"
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -106,8 +107,17 @@ func (r *TeamRepository) AddMember(ctx context.Context, teamID uuid.UUID, userID
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
 			if pgErr.Code == "23503" {
-				r.log.Error("AddMember FK violation", "team_id", teamID, "user_id", userID, "err", err)
-				return utils.ErrUserNotFound
+				cn := strings.ToLower(pgErr.ConstraintName)
+				if strings.Contains(cn, "user") {
+					r.log.Error("AddMember FK violation (user)", "team_id", teamID, "user_id", userID, "err", err)
+					return utils.ErrUserNotFound
+				}
+				if strings.Contains(cn, "team") {
+					r.log.Error("AddMember FK violation (team)", "team_id", teamID, "user_id", userID, "err", err)
+					return utils.ErrTeamNotFound
+				}
+				r.log.Error("AddMember FK violation (unknown constraint)", "constraint", pgErr.ConstraintName, "team_id", teamID, "user_id", userID, "err", err)
+				return utils.ErrNotFound
 			}
 		}
 		r.log.Error("AddMember failed", "team_id", teamID, "user_id", userID, "err", err)
@@ -115,6 +125,7 @@ func (r *TeamRepository) AddMember(ctx context.Context, teamID uuid.UUID, userID
 	}
 	if tag.RowsAffected() == 0 {
 		r.log.Warn("AddMember already exists", "team_id", teamID, "user_id", userID)
+		return utils.ErrAlreadyExists
 	}
 	return nil
 }
