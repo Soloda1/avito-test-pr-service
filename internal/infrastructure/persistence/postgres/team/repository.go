@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -34,20 +35,28 @@ func (r *TeamRepository) CreateTeam(ctx context.Context, team *models.Team) erro
 	const q = `
 		INSERT INTO teams (id, name, created_at, updated_at)
 		VALUES (@id, @name, now(), now())
-		ON CONFLICT (name) DO NOTHING
-		RETURNING id;
+		RETURNING id, name, created_at, updated_at;
 	`
 	row := r.querier.QueryRow(ctx, q, pgx.NamedArgs{"id": team.ID, "name": team.Name})
-	var insertedID uuid.UUID
-	if err := row.Scan(&insertedID); err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			r.log.Warn("CreateTeam conflict", "team_name", team.Name)
+	var createdID uuid.UUID
+	var createdName string
+	var createdAt, updatedAt time.Time
+	if err := row.Scan(&createdID, &createdName, &createdAt, &updatedAt); err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" { // unique violation on name
+			r.log.Error("CreateTeam unique violation", "code", pgErr.Code, "constraint", pgErr.ConstraintName, "team_name", team.Name, "err", pgErr)
 			return utils.ErrAlreadyExists
+		}
+		if errors.As(err, &pgErr) {
+			r.log.Error("CreateTeam pg error", "code", pgErr.Code, "constraint", pgErr.ConstraintName, "team_name", team.Name, "err", pgErr)
 		}
 		r.log.Error("CreateTeam failed", "team_name", team.Name, "err", err)
 		return err
 	}
-	team.ID = insertedID
+	team.ID = createdID
+	team.Name = createdName
+	team.CreatedAt = createdAt
+	team.UpdatedAt = updatedAt
 	return nil
 }
 
@@ -100,32 +109,38 @@ func (r *TeamRepository) AddMember(ctx context.Context, teamID uuid.UUID, userID
 	const q = `
 		INSERT INTO team_members (team_id, user_id)
 		VALUES (@team_id, @user_id)
-		ON CONFLICT DO NOTHING;
+		RETURNING team_id;
 	`
-	tag, err := r.querier.Exec(ctx, q, pgx.NamedArgs{"team_id": teamID, "user_id": userID})
-	if err != nil {
+	row := r.querier.QueryRow(ctx, q, pgx.NamedArgs{"team_id": teamID, "user_id": userID})
+	var returnedTeamID uuid.UUID
+	if err := row.Scan(&returnedTeamID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) { // не должно случаться при RETURNING, но на всякий случай
+			return utils.ErrNotFound
+		}
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
-			if pgErr.Code == "23503" {
+			switch pgErr.Code {
+			case "23505":
+				r.log.Error("AddMember unique violation", "code", pgErr.Code, "constraint", pgErr.ConstraintName, "team_id", teamID, "user_id", userID, "err", pgErr)
+				return utils.ErrAlreadyExists
+			case "23503":
 				cn := strings.ToLower(pgErr.ConstraintName)
 				if strings.Contains(cn, "user") {
-					r.log.Error("AddMember FK violation (user)", "team_id", teamID, "user_id", userID, "err", err)
+					r.log.Error("AddMember FK violation (user)", "code", pgErr.Code, "constraint", pgErr.ConstraintName, "team_id", teamID, "user_id", userID, "err", pgErr)
 					return utils.ErrUserNotFound
 				}
 				if strings.Contains(cn, "team") {
-					r.log.Error("AddMember FK violation (team)", "team_id", teamID, "user_id", userID, "err", err)
+					r.log.Error("AddMember FK violation (team)", "code", pgErr.Code, "constraint", pgErr.ConstraintName, "team_id", teamID, "user_id", userID, "err", pgErr)
 					return utils.ErrTeamNotFound
 				}
-				r.log.Error("AddMember FK violation (unknown constraint)", "constraint", pgErr.ConstraintName, "team_id", teamID, "user_id", userID, "err", err)
+				r.log.Error("AddMember FK violation (unknown)", "code", pgErr.Code, "constraint", pgErr.ConstraintName, "team_id", teamID, "user_id", userID, "err", pgErr)
 				return utils.ErrNotFound
+			default:
+				r.log.Error("AddMember pg error", "code", pgErr.Code, "constraint", pgErr.ConstraintName, "team_id", teamID, "user_id", userID, "err", pgErr)
 			}
 		}
 		r.log.Error("AddMember failed", "team_id", teamID, "user_id", userID, "err", err)
 		return err
-	}
-	if tag.RowsAffected() == 0 {
-		r.log.Warn("AddMember already exists", "team_id", teamID, "user_id", userID)
-		return utils.ErrAlreadyExists
 	}
 	return nil
 }
@@ -133,15 +148,21 @@ func (r *TeamRepository) AddMember(ctx context.Context, teamID uuid.UUID, userID
 func (r *TeamRepository) RemoveMember(ctx context.Context, teamID uuid.UUID, userID uuid.UUID) error {
 	const q = `
 		DELETE FROM team_members
-		WHERE team_id = @team_id AND user_id = @user_id;
+		WHERE team_id = @team_id AND user_id = @user_id
+		RETURNING team_id;
 	`
-	tag, err := r.querier.Exec(ctx, q, pgx.NamedArgs{"team_id": teamID, "user_id": userID})
-	if err != nil {
+	row := r.querier.QueryRow(ctx, q, pgx.NamedArgs{"team_id": teamID, "user_id": userID})
+	var returnedTeamID uuid.UUID
+	if err := row.Scan(&returnedTeamID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return utils.ErrNotFound
+		}
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			r.log.Error("RemoveMember pg error", "code", pgErr.Code, "constraint", pgErr.ConstraintName, "team_id", teamID, "user_id", userID, "err", pgErr)
+		}
 		r.log.Error("RemoveMember failed", "team_id", teamID, "user_id", userID, "err", err)
 		return err
-	}
-	if tag.RowsAffected() == 0 {
-		return utils.ErrNotFound
 	}
 	return nil
 }

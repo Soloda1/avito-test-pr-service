@@ -34,20 +34,17 @@ func (r *PRRepository) CreatePR(ctx context.Context, pr *models.PullRequest) err
 	const insertPR = `
 		INSERT INTO prs (id, title, author_id, status, created_at, updated_at)
 		VALUES (@id, @title, @author_id, 'OPEN', now(), now())
-		ON CONFLICT (id) DO NOTHING
-		RETURNING id;
+		RETURNING id, title, author_id, status, created_at, merged_at, updated_at;
 	`
 	row := r.querier.QueryRow(ctx, insertPR, pgx.NamedArgs{"id": pr.ID, "title": pr.Title, "author_id": pr.AuthorID})
-	var insertedID uuid.UUID
-	if err := row.Scan(&insertedID); err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			r.log.Warn("CreatePR conflict", "pr_id", pr.ID)
+	if err := row.Scan(&pr.ID, &pr.Title, &pr.AuthorID, &pr.Status, &pr.CreatedAt, &pr.MergedAt, &pr.UpdatedAt); err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" { // unique violation (pk)
 			return utils.ErrPRExists
 		}
 		r.log.Error("CreatePR failed", "pr_id", pr.ID, "err", err)
 		return err
 	}
-	pr.ID = insertedID
 	for _, reviewerID := range pr.ReviewerIDs {
 		if reviewerID == uuid.Nil {
 			continue
@@ -139,6 +136,10 @@ func (r *PRRepository) CountReviewersByPRID(ctx context.Context, prID uuid.UUID)
 	row := r.querier.QueryRow(ctx, q, pgx.NamedArgs{"pr_id": prID})
 	var c int
 	if err := row.Scan(&c); err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			r.log.Error("CountReviewersByPRID pg error", "code", pgErr.Code, "constraint", pgErr.ConstraintName, "pr_id", prID, "err", pgErr)
+		}
 		r.log.Error("CountReviewersByPRID failed", "pr_id", prID, "err", err)
 		return 0, err
 	}
@@ -155,15 +156,22 @@ func (r *PRRepository) AddReviewer(ctx context.Context, prID uuid.UUID, reviewer
 	}
 	const q = `
 		INSERT INTO pr_reviewers (pr_id, reviewer_id, assigned_at)
-		VALUES (@pr_id, @reviewer_id, now());
+		VALUES (@pr_id, @reviewer_id, now())
+		RETURNING pr_id;
 	`
-	_, err = r.querier.Exec(ctx, q, pgx.NamedArgs{"pr_id": prID, "reviewer_id": reviewerID})
-	if err != nil {
+	row := r.querier.QueryRow(ctx, q, pgx.NamedArgs{"pr_id": prID, "reviewer_id": reviewerID})
+	var returnedPR uuid.UUID
+	if err := row.Scan(&returnedPR); err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
 			if pgErr.Code == "23505" {
 				return utils.ErrReviewerAlreadyAssigned
 			}
+			if pgErr.Code == "23503" {
+				r.log.Error("AddReviewer FK violation", "code", pgErr.Code, "constraint", pgErr.ConstraintName, "pr_id", prID, "reviewer_id", reviewerID, "err", pgErr)
+				return err
+			}
+			r.log.Error("AddReviewer pg error", "code", pgErr.Code, "constraint", pgErr.ConstraintName, "pr_id", prID, "reviewer_id", reviewerID, "err", pgErr)
 		}
 		r.log.Error("AddReviewer failed", "pr_id", prID, "reviewer_id", reviewerID, "err", err)
 		return err
@@ -174,15 +182,21 @@ func (r *PRRepository) AddReviewer(ctx context.Context, prID uuid.UUID, reviewer
 func (r *PRRepository) RemoveReviewer(ctx context.Context, prID uuid.UUID, reviewerID uuid.UUID) error {
 	const q = `
 		DELETE FROM pr_reviewers
-		WHERE pr_id = @pr_id AND reviewer_id = @reviewer_id;
+		WHERE pr_id = @pr_id AND reviewer_id = @reviewer_id
+		RETURNING pr_id;
 	`
-	tag, err := r.querier.Exec(ctx, q, pgx.NamedArgs{"pr_id": prID, "reviewer_id": reviewerID})
-	if err != nil {
+	row := r.querier.QueryRow(ctx, q, pgx.NamedArgs{"pr_id": prID, "reviewer_id": reviewerID})
+	var returnedPR uuid.UUID
+	if err := row.Scan(&returnedPR); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return utils.ErrReviewerNotAssigned
+		}
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			r.log.Error("RemoveReviewer pg error", "code", pgErr.Code, "constraint", pgErr.ConstraintName, "pr_id", prID, "reviewer_id", reviewerID, "err", pgErr)
+		}
 		r.log.Error("RemoveReviewer failed", "pr_id", prID, "reviewer_id", reviewerID, "err", err)
 		return err
-	}
-	if tag.RowsAffected() == 0 {
-		return utils.ErrReviewerNotAssigned
 	}
 	return nil
 }
@@ -213,8 +227,11 @@ func (r *PRRepository) UpdateStatus(ctx context.Context, prID uuid.UUID, status 
 				r.log.Error("UpdateStatus exists check failed", "pr_id", prID, "err", err2)
 				return err2
 			}
-			// Exists but no rows affected -> idempotent no-op
 			return nil
+		}
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			r.log.Error("UpdateStatus pg error", "code", pgErr.Code, "constraint", pgErr.ConstraintName, "pr_id", prID, "err", pgErr)
 		}
 		r.log.Error("UpdateStatus failed", "pr_id", prID, "err", err)
 		return err
@@ -227,11 +244,15 @@ func (r *PRRepository) ListPRsByReviewer(ctx context.Context, reviewerID uuid.UU
 		SELECT p.id, p.title, p.author_id, p.status, p.created_at, p.merged_at, p.updated_at
 		FROM prs p
 		JOIN pr_reviewers r ON p.id = r.pr_id
-		WHERE r.reviewer_id = @reviewer_id AND (@status::text IS NULL OR p.status = @status)
+		WHERE r.reviewer_id = @reviewer_id AND (@status IS NULL OR p.status = @status)
 		ORDER BY p.created_at DESC;
 	`
 	rows, err := r.querier.Query(ctx, q, pgx.NamedArgs{"reviewer_id": reviewerID, "status": status})
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			r.log.Error("ListPRsByReviewer pg query error", "code", pgErr.Code, "constraint", pgErr.ConstraintName, "reviewer_id", reviewerID, "err", pgErr)
+		}
 		r.log.Error("ListPRsByReviewer query failed", "reviewer_id", reviewerID, "err", err)
 		return nil, err
 	}
@@ -240,6 +261,10 @@ func (r *PRRepository) ListPRsByReviewer(ctx context.Context, reviewerID uuid.UU
 	for rows.Next() {
 		var pr models.PullRequest
 		if err := rows.Scan(&pr.ID, &pr.Title, &pr.AuthorID, &pr.Status, &pr.CreatedAt, &pr.MergedAt, &pr.UpdatedAt); err != nil {
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) {
+				r.log.Error("ListPRsByReviewer pg scan error", "code", pgErr.Code, "constraint", pgErr.ConstraintName, "reviewer_id", reviewerID, "err", pgErr)
+			}
 			r.log.Error("ListPRsByReviewer scan failed", "reviewer_id", reviewerID, "err", err)
 			return nil, err
 		}

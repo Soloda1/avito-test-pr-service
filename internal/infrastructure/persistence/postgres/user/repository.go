@@ -24,23 +24,26 @@ func NewUserRepository(querier postgres.Querier, log ports.Logger) user_port.Use
 }
 
 func (r *UserRepository) CreateUser(ctx context.Context, user *models.User) error {
-	args := pgx.NamedArgs{
-		"id":        user.ID,
-		"name":      user.Name,
-		"is_active": user.IsActive,
+	if user.Name == "" {
+		return utils.ErrInvalidArgument
 	}
-
+	if user.ID == uuid.Nil {
+		user.ID = uuid.New()
+	}
 	const q = `
 		INSERT INTO users (id, name, is_active, created_at, updated_at)
 		VALUES (@id, @name, @is_active, now(), now())
+		RETURNING id, name, is_active, created_at, updated_at;
 	`
-	_, err := r.querier.Exec(ctx, q, args)
-	if err != nil {
+	row := r.querier.QueryRow(ctx, q, pgx.NamedArgs{"id": user.ID, "name": user.Name, "is_active": user.IsActive})
+	if err := row.Scan(&user.ID, &user.Name, &user.IsActive, &user.CreatedAt, &user.UpdatedAt); err != nil {
 		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" { // unique violation
+			r.log.Error("CreateUser unique violation", "code", pgErr.Code, "constraint", pgErr.ConstraintName, "user_id", user.ID, "err", pgErr)
+			return utils.ErrUserExists
+		}
 		if errors.As(err, &pgErr) {
-			if pgErr.Code == "23505" { // unique_violation
-				return utils.ErrUserExists
-			}
+			r.log.Error("CreateUser pg error", "code", pgErr.Code, "constraint", pgErr.ConstraintName, "user_id", user.ID, "err", pgErr)
 		}
 		r.log.Error("CreateUser failed", "user_id", user.ID, "err", err)
 		return err
@@ -71,16 +74,21 @@ func (r *UserRepository) UpdateUserActive(ctx context.Context, id uuid.UUID, isA
 		UPDATE users
 		SET is_active = @is_active,
 			updated_at = now()
-		WHERE id = @id;
+		WHERE id = @id
+		RETURNING id;
 	`
-	args := pgx.NamedArgs{"is_active": isActive, "id": id}
-	tag, err := r.querier.Exec(ctx, q, args)
-	if err != nil {
+	row := r.querier.QueryRow(ctx, q, pgx.NamedArgs{"is_active": isActive, "id": id})
+	var returnedID uuid.UUID
+	if err := row.Scan(&returnedID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return utils.ErrUserNotFound
+		}
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			r.log.Error("UpdateUserActive pg error", "code", pgErr.Code, "constraint", pgErr.ConstraintName, "user_id", id, "err", pgErr)
+		}
 		r.log.Error("UpdateUserActive failed", "user_id", id, "err", err)
 		return err
-	}
-	if tag.RowsAffected() == 0 {
-		return utils.ErrUserNotFound
 	}
 	return nil
 }
@@ -92,15 +100,22 @@ func (r *UserRepository) ListUsers(ctx context.Context) ([]*models.User, error) 
 	`
 	rows, err := r.querier.Query(ctx, q)
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			r.log.Error("ListUsers pg query error", "code", pgErr.Code, "constraint", pgErr.ConstraintName, "err", pgErr)
+		}
 		r.log.Error("ListUsers query failed", "err", err)
 		return nil, err
 	}
 	defer rows.Close()
-
 	var res []*models.User
 	for rows.Next() {
 		var u models.User
 		if err := rows.Scan(&u.ID, &u.Name, &u.IsActive, &u.CreatedAt, &u.UpdatedAt); err != nil {
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) {
+				r.log.Error("ListUsers pg scan error", "code", pgErr.Code, "constraint", pgErr.ConstraintName, "err", pgErr)
+			}
 			r.log.Error("ListUsers scan failed", "err", err)
 			return nil, err
 		}
@@ -125,6 +140,10 @@ func (r *UserRepository) GetTeamIDByUserID(ctx context.Context, userID uuid.UUID
 		if errors.Is(err, pgx.ErrNoRows) {
 			return uuid.Nil, utils.ErrUserNoTeam
 		}
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			r.log.Error("GetTeamIDByUserID pg error", "code", pgErr.Code, "constraint", pgErr.ConstraintName, "user_id", userID, "err", pgErr)
+		}
 		r.log.Error("GetTeamIDByUserID failed", "user_id", userID, "err", err)
 		return uuid.Nil, err
 	}
@@ -140,15 +159,22 @@ func (r *UserRepository) ListActiveMembersByTeamID(ctx context.Context, teamID u
 	`
 	rows, err := r.querier.Query(ctx, q, pgx.NamedArgs{"team_id": teamID})
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			r.log.Error("ListActiveMembersByTeamID pg query error", "code", pgErr.Code, "constraint", pgErr.ConstraintName, "team_id", teamID, "err", pgErr)
+		}
 		r.log.Error("ListActiveMembersByTeamID query failed", "team_id", teamID, "err", err)
 		return nil, err
 	}
 	defer rows.Close()
-
 	var ids []uuid.UUID
 	for rows.Next() {
 		var id uuid.UUID
 		if err := rows.Scan(&id); err != nil {
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) {
+				r.log.Error("ListActiveMembersByTeamID pg scan error", "code", pgErr.Code, "constraint", pgErr.ConstraintName, "team_id", teamID, "err", pgErr)
+			}
 			r.log.Error("ListActiveMembersByTeamID scan failed", "err", err)
 			return nil, err
 		}
