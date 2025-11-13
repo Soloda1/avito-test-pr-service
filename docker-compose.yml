@@ -1,0 +1,85 @@
+services:
+  pr-db:
+    image: postgres:16-alpine
+    container_name: pr-service-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: prservice
+      POSTGRES_PORT: 5432
+    command: postgres -p 5432
+    volumes:
+      - pr_postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - prnet
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -p 5432"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  migrator:
+    build:
+      context: .
+      dockerfile: Dockerfile.migrator
+    container_name: pr-service-migrator
+    depends_on:
+      pr-db:
+        condition: service_healthy
+    volumes:
+      - ./migrations:/app/migrations
+      - ./config:/app/config
+    environment:
+      - ENV=dev
+    networks:
+      - prnet
+    command: ./migrator -command up
+
+  pr-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pr-service
+    depends_on:
+      migrator:
+        condition: service_completed_successfully
+    volumes:
+      - ./config:/app/config
+    environment:
+      - ENV=dev
+    networks:
+      - prnet
+    ports:
+      - "8080:8080"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  pgadmin:
+    image: dpage/pgadmin4:8
+    container_name: pr-service-pgadmin
+    depends_on:
+      pr-db:
+        condition: service_healthy
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - prnet
+
+volumes:
+  pr_postgres_data:
+  pgadmin_data:
+
+networks:
+  prnet:
+    name: prnet
+    driver: bridge
