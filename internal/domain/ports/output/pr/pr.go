@@ -8,6 +8,8 @@ import (
 	"github.com/google/uuid"
 )
 
+//go:generate mockery --name PRRepository --dir . --output ../../../../../mocks --outpkg mocks --with-expecter --filename PRRepository.go
+
 type PRRepository interface {
 	CreatePR(ctx context.Context, pr *models.PullRequest) error
 	GetPRByID(ctx context.Context, id uuid.UUID) (*models.PullRequest, error)

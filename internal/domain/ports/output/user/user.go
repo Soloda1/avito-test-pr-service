@@ -7,6 +7,8 @@ import (
 	"github.com/google/uuid"
 )
 
+//go:generate mockery --name UserRepository --dir . --output ../../../../../mocks --outpkg mocks --with-expecter --filename UserRepository.go
+
 type UserRepository interface {
 	CreateUser(ctx context.Context, user *models.User) error
 	GetUserByID(ctx context.Context, id uuid.UUID) (*models.User, error)

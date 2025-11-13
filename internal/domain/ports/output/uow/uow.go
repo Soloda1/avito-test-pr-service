@@ -7,6 +7,9 @@ import (
 	"context"
 )
 
+//go:generate mockery --name UnitOfWork --dir . --output ../../../../../mocks --outpkg mocks --with-expecter --filename UnitOfWork.go
+//go:generate mockery --name Transaction --dir . --output ../../../../../mocks --outpkg mocks --with-expecter --filename Transaction.go
+
 type UnitOfWork interface {
 	Begin(ctx context.Context) (Transaction, error)
 }

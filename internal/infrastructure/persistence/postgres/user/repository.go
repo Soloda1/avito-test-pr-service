@@ -5,10 +5,13 @@ import (
 	ports "avito-test-pr-service/internal/domain/ports/output"
 	user_port "avito-test-pr-service/internal/domain/ports/output/user"
 	"avito-test-pr-service/internal/infrastructure/persistence/postgres"
+	"avito-test-pr-service/internal/utils"
 	"context"
 	"errors"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type UserRepository struct {
@@ -21,25 +24,164 @@ func NewUserRepository(querier postgres.Querier, log ports.Logger) user_port.Use
 }
 
 func (r *UserRepository) CreateUser(ctx context.Context, user *models.User) error {
-	return errors.New("not implemented")
+	if user.Name == "" {
+		return utils.ErrInvalidArgument
+	}
+	if user.ID == uuid.Nil {
+		user.ID = uuid.New()
+	}
+	const q = `
+		INSERT INTO users (id, name, is_active, created_at, updated_at)
+		VALUES (@id, @name, @is_active, now(), now())
+		RETURNING id, name, is_active, created_at, updated_at;
+	`
+	row := r.querier.QueryRow(ctx, q, pgx.NamedArgs{"id": user.ID, "name": user.Name, "is_active": user.IsActive})
+	if err := row.Scan(&user.ID, &user.Name, &user.IsActive, &user.CreatedAt, &user.UpdatedAt); err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" { // unique violation
+			r.log.Error("CreateUser unique violation", "code", pgErr.Code, "constraint", pgErr.ConstraintName, "user_id", user.ID, "err", pgErr)
+			return utils.ErrUserExists
+		}
+		if errors.As(err, &pgErr) {
+			r.log.Error("CreateUser pg error", "code", pgErr.Code, "constraint", pgErr.ConstraintName, "user_id", user.ID, "err", pgErr)
+		}
+		r.log.Error("CreateUser failed", "user_id", user.ID, "err", err)
+		return err
+	}
+	return nil
 }
 
 func (r *UserRepository) GetUserByID(ctx context.Context, id uuid.UUID) (*models.User, error) {
-	return nil, errors.New("not implemented")
+	const q = `
+		SELECT id, name, is_active, created_at, updated_at
+		FROM users
+		WHERE id = @id;
+	`
+	row := r.querier.QueryRow(ctx, q, pgx.NamedArgs{"id": id})
+	var u models.User
+	if err := row.Scan(&u.ID, &u.Name, &u.IsActive, &u.CreatedAt, &u.UpdatedAt); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, utils.ErrUserNotFound
+		}
+		r.log.Error("GetUserByID failed", "user_id", id, "err", err)
+		return nil, err
+	}
+	return &u, nil
 }
 
 func (r *UserRepository) UpdateUserActive(ctx context.Context, id uuid.UUID, isActive bool) error {
-	return errors.New("not implemented")
+	const q = `
+		UPDATE users
+		SET is_active = @is_active,
+			updated_at = now()
+		WHERE id = @id
+		RETURNING id;
+	`
+	row := r.querier.QueryRow(ctx, q, pgx.NamedArgs{"is_active": isActive, "id": id})
+	var returnedID uuid.UUID
+	if err := row.Scan(&returnedID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return utils.ErrUserNotFound
+		}
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			r.log.Error("UpdateUserActive pg error", "code", pgErr.Code, "constraint", pgErr.ConstraintName, "user_id", id, "err", pgErr)
+		}
+		r.log.Error("UpdateUserActive failed", "user_id", id, "err", err)
+		return err
+	}
+	return nil
 }
 
 func (r *UserRepository) ListUsers(ctx context.Context) ([]*models.User, error) {
-	return nil, errors.New("not implemented")
+	const q = `
+		SELECT id, name, is_active, created_at, updated_at
+		FROM users;
+	`
+	rows, err := r.querier.Query(ctx, q)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			r.log.Error("ListUsers pg query error", "code", pgErr.Code, "constraint", pgErr.ConstraintName, "err", pgErr)
+		}
+		r.log.Error("ListUsers query failed", "err", err)
+		return nil, err
+	}
+	defer rows.Close()
+	var res []*models.User
+	for rows.Next() {
+		var u models.User
+		if err := rows.Scan(&u.ID, &u.Name, &u.IsActive, &u.CreatedAt, &u.UpdatedAt); err != nil {
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) {
+				r.log.Error("ListUsers pg scan error", "code", pgErr.Code, "constraint", pgErr.ConstraintName, "err", pgErr)
+			}
+			r.log.Error("ListUsers scan failed", "err", err)
+			return nil, err
+		}
+		res = append(res, &u)
+	}
+	if rows.Err() != nil {
+		return nil, rows.Err()
+	}
+	return res, nil
 }
 
 func (r *UserRepository) GetTeamIDByUserID(ctx context.Context, userID uuid.UUID) (uuid.UUID, error) {
-	return uuid.Nil, errors.New("not implemented")
+	const q = `
+		SELECT team_id
+		FROM team_members
+		WHERE user_id = @user_id
+		LIMIT 1;
+	`
+	row := r.querier.QueryRow(ctx, q, pgx.NamedArgs{"user_id": userID})
+	var teamID uuid.UUID
+	if err := row.Scan(&teamID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return uuid.Nil, utils.ErrUserNoTeam
+		}
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			r.log.Error("GetTeamIDByUserID pg error", "code", pgErr.Code, "constraint", pgErr.ConstraintName, "user_id", userID, "err", pgErr)
+		}
+		r.log.Error("GetTeamIDByUserID failed", "user_id", userID, "err", err)
+		return uuid.Nil, err
+	}
+	return teamID, nil
 }
 
 func (r *UserRepository) ListActiveMembersByTeamID(ctx context.Context, teamID uuid.UUID) ([]uuid.UUID, error) {
-	return nil, errors.New("not implemented")
+	const q = `
+		SELECT u.id
+		FROM users u
+		JOIN team_members tm ON u.id = tm.user_id
+		WHERE tm.team_id = @team_id AND u.is_active = true;
+	`
+	rows, err := r.querier.Query(ctx, q, pgx.NamedArgs{"team_id": teamID})
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			r.log.Error("ListActiveMembersByTeamID pg query error", "code", pgErr.Code, "constraint", pgErr.ConstraintName, "team_id", teamID, "err", pgErr)
+		}
+		r.log.Error("ListActiveMembersByTeamID query failed", "team_id", teamID, "err", err)
+		return nil, err
+	}
+	defer rows.Close()
+	var ids []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) {
+				r.log.Error("ListActiveMembersByTeamID pg scan error", "code", pgErr.Code, "constraint", pgErr.ConstraintName, "team_id", teamID, "err", pgErr)
+			}
+			r.log.Error("ListActiveMembersByTeamID scan failed", "err", err)
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	if rows.Err() != nil {
+		return nil, rows.Err()
+	}
+	return ids, nil
 }

@@ -7,6 +7,8 @@ import (
 	"github.com/google/uuid"
 )
 
+//go:generate mockery --name TeamRepository --dir . --output ../../../../../mocks --outpkg mocks --with-expecter --filename TeamRepository.go
+
 type TeamRepository interface {
 	CreateTeam(ctx context.Context, team *models.Team) error
 	GetTeamByID(ctx context.Context, id uuid.UUID) (*models.Team, error)

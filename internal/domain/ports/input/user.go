@@ -7,6 +7,8 @@ import (
 	"github.com/google/uuid"
 )
 
+//go:generate mockery --name UserInputPort --dir . --output ../../../../mocks --outpkg mocks --with-expecter --filename UserInputPort.go
+
 type UserInputPort interface {
 	CreateUser(ctx context.Context, name string, isActive bool) (*models.User, error)
 	UpdateUserActive(ctx context.Context, id uuid.UUID, isActive bool) error

@@ -7,6 +7,8 @@ import (
 	"github.com/google/uuid"
 )
 
+//go:generate mockery --name TeamInputPort --dir . --output ../../../../mocks --outpkg mocks --with-expecter --filename TeamInputPort.go
+
 type TeamInputPort interface {
 	CreateTeam(ctx context.Context, name string) (*models.Team, error)
 	AddMember(ctx context.Context, teamID uuid.UUID, userID uuid.UUID) error
