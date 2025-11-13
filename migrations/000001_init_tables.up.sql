@@ -24,7 +24,6 @@ CREATE TABLE prs (
      title TEXT NOT NULL,
      author_id UUID NOT NULL REFERENCES users(id),
      status TEXT NOT NULL DEFAULT 'OPEN' CHECK (status IN ('OPEN', 'MERGED')),
-     need_more_reviewers BOOLEAN NOT NULL DEFAULT FALSE,
      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
      merged_at TIMESTAMPTZ NULL,
      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
