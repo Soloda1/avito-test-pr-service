@@ -161,7 +161,7 @@ func (r *PRRepository) AddReviewer(ctx context.Context, prID uuid.UUID, reviewer
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
-			if pgErr.Code == "23505" { // unique violation
+			if pgErr.Code == "23505" {
 				return utils.ErrReviewerAlreadyAssigned
 			}
 		}

@@ -103,8 +103,9 @@ func (r *TeamRepository) AddMember(ctx context.Context, teamID uuid.UUID, userID
 	`
 	tag, err := r.querier.Exec(ctx, q, pgx.NamedArgs{"team_id": teamID, "user_id": userID})
 	if err != nil {
-		if pgErr, ok := err.(*pgconn.PgError); ok {
-			if pgErr.Code == "23503" { // foreign_key_violation
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			if pgErr.Code == "23503" {
 				r.log.Error("AddMember FK violation", "team_id", teamID, "user_id", userID, "err", err)
 				return utils.ErrUserNotFound
 			}
