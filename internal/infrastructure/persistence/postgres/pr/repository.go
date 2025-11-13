@@ -243,6 +243,11 @@ func (r *PRRepository) ListPRsByReviewer(ctx context.Context, reviewerID uuid.UU
 			r.log.Error("ListPRsByReviewer scan failed", "reviewer_id", reviewerID, "err", err)
 			return nil, err
 		}
+		reviewers, err := r.loadReviewers(ctx, pr.ID)
+		if err != nil {
+			return nil, err
+		}
+		pr.ReviewerIDs = reviewers
 		res = append(res, &pr)
 	}
 	if rows.Err() != nil {
