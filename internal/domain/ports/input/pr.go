@@ -7,6 +7,8 @@ import (
 	"github.com/google/uuid"
 )
 
+//go:generate mockery --name PRInputPort --dir . --output ../../../../mocks --outpkg mocks --with-expecter --filename PRInputPort.go
+
 type PRInputPort interface {
 	CreatePR(ctx context.Context, authorID uuid.UUID, title string) (*models.PullRequest, error)
 	ReassignReviewer(ctx context.Context, prID uuid.UUID, oldReviewerID uuid.UUID) (*models.PullRequest, error)
