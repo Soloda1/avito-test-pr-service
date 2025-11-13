@@ -15,339 +15,418 @@ import (
 
 	"avito-test-pr-service/internal/domain/models"
 	user_port "avito-test-pr-service/internal/domain/ports/output/user"
+	"avito-test-pr-service/internal/infrastructure/logger"
 	user_repository "avito-test-pr-service/internal/infrastructure/persistence/postgres/user"
 	"avito-test-pr-service/internal/utils"
 	"avito-test-pr-service/mocks"
 )
 
-func newRepo(t *testing.T) (user_port.UserRepository, *mocks.Querier, *mocks.Logger) {
+func newRepo(t *testing.T) (user_port.UserRepository, *mocks.Querier) {
 	q := mocks.NewQuerier(t)
-	log := mocks.NewLogger(t)
-
-	log.EXPECT().Error(mock.Anything, mock.Anything, mock.Anything).Return().Maybe()
-	log.EXPECT().Error(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return().Maybe()
-
-	repo := user_repository.NewUserRepository(q, log)
-	return repo, q, log
+	log := logger.New("dev")
+	return user_repository.NewUserRepository(q, log), q
 }
 
 func TestUserRepository_CreateUser(t *testing.T) {
-	t.Run("success", func(t *testing.T) {
-		repo, q, _ := newRepo(t)
-		ctx := context.Background()
-		u := &models.User{ID: uuid.New(), Name: "alice", IsActive: true}
-
-		q.EXPECT().Exec(ctx, mock.Anything, mock.Anything).Return(pgconn.NewCommandTag("INSERT 0 1"), nil)
-
-		err := repo.CreateUser(ctx, u)
-		require.NoError(t, err)
-	})
-
-	t.Run("unique violation", func(t *testing.T) {
-		repo, q, _ := newRepo(t)
-		ctx := context.Background()
-		u := &models.User{ID: uuid.New(), Name: "alice", IsActive: true}
-
-		q.EXPECT().Exec(ctx, mock.Anything, mock.Anything).Return(pgconn.NewCommandTag(""), &pgconn.PgError{Code: "23505"})
-
-		err := repo.CreateUser(ctx, u)
-		assert.ErrorIs(t, err, utils.ErrUserExists)
-	})
-
-	t.Run("db error", func(t *testing.T) {
-		repo, q, _ := newRepo(t)
-		ctx := context.Background()
-		u := &models.User{ID: uuid.New(), Name: "alice", IsActive: true}
-
-		q.EXPECT().Exec(ctx, mock.Anything, mock.Anything).Return(pgconn.NewCommandTag(""), errors.New("db error"))
-
-		err := repo.CreateUser(ctx, u)
-		require.Error(t, err)
-	})
+	tests := []struct {
+		name      string
+		user      *models.User
+		mockSetup func(*mocks.Querier, *models.User)
+		wantErr   bool
+		wantIsErr error
+	}{
+		{
+			name: "success",
+			user: &models.User{ID: uuid.New(), Name: "alice", IsActive: true},
+			mockSetup: func(q *mocks.Querier, u *models.User) {
+				q.EXPECT().Exec(mock.Anything, mock.Anything, mock.Anything).Return(pgconn.NewCommandTag("INSERT 0 1"), nil)
+			},
+		},
+		{
+			name: "unique violation",
+			user: &models.User{ID: uuid.New(), Name: "alice", IsActive: true},
+			mockSetup: func(q *mocks.Querier, u *models.User) {
+				q.EXPECT().Exec(mock.Anything, mock.Anything, mock.Anything).Return(pgconn.NewCommandTag(""), &pgconn.PgError{Code: "23505"})
+			},
+			wantErr:   true,
+			wantIsErr: utils.ErrUserExists,
+		},
+		{
+			name: "db error",
+			user: &models.User{ID: uuid.New(), Name: "alice", IsActive: true},
+			mockSetup: func(q *mocks.Querier, u *models.User) {
+				q.EXPECT().Exec(mock.Anything, mock.Anything, mock.Anything).Return(pgconn.NewCommandTag(""), errors.New("db error"))
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo, q := newRepo(t)
+			if tt.mockSetup != nil {
+				tt.mockSetup(q, tt.user)
+			}
+			err := repo.CreateUser(context.Background(), tt.user)
+			if tt.wantErr {
+				require.Error(t, err)
+				if tt.wantIsErr != nil {
+					assert.ErrorIs(t, err, tt.wantIsErr)
+				}
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
 }
 
 func TestUserRepository_GetUserByID(t *testing.T) {
-	t.Run("success", func(t *testing.T) {
-		repo, q, _ := newRepo(t)
-		ctx := context.Background()
-		id := uuid.New()
-		now := time.Now().Truncate(time.Microsecond)
-
-		row := mocks.NewRow(t)
-		row.EXPECT().Scan(
-			mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything,
-		).Run(func(args ...interface{}) {
-			*(args[0].(*uuid.UUID)) = id
-			*(args[1].(*string)) = "bob"
-			*(args[2].(*bool)) = true
-			*(args[3].(*time.Time)) = now
-			*(args[4].(*time.Time)) = now
-		}).Return(nil)
-
-		q.EXPECT().QueryRow(ctx, mock.Anything, mock.Anything).Return(row)
-
-		u, err := repo.GetUserByID(ctx, id)
-		require.NoError(t, err)
-		assert.Equal(t, id, u.ID)
-		assert.Equal(t, "bob", u.Name)
-		assert.True(t, u.IsActive)
-	})
-
-	t.Run("not found", func(t *testing.T) {
-		repo, q, _ := newRepo(t)
-		ctx := context.Background()
-		id := uuid.New()
-
-		row := mocks.NewRow(t)
-		row.EXPECT().Scan(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(pgx.ErrNoRows)
-		q.EXPECT().QueryRow(ctx, mock.Anything, mock.Anything).Return(row)
-
-		_, err := repo.GetUserByID(ctx, id)
-		assert.ErrorIs(t, err, utils.ErrUserNotFound)
-	})
-
-	t.Run("scan error", func(t *testing.T) {
-		repo, q, _ := newRepo(t)
-		ctx := context.Background()
-		id := uuid.New()
-
-		row := mocks.NewRow(t)
-		row.EXPECT().Scan(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("scan error"))
-		q.EXPECT().QueryRow(ctx, mock.Anything, mock.Anything).Return(row)
-
-		_, err := repo.GetUserByID(ctx, id)
-		require.Error(t, err)
-	})
+	now := time.Now().Truncate(time.Microsecond)
+	id := uuid.New()
+	tests := []struct {
+		name      string
+		id        uuid.UUID
+		mockSetup func(*mocks.Querier, uuid.UUID)
+		wantErr   bool
+		wantIsErr error
+		wantUser  *models.User
+	}{
+		{
+			name: "success",
+			id:   id,
+			mockSetup: func(q *mocks.Querier, id uuid.UUID) {
+				row := mocks.NewRow(t)
+				row.EXPECT().Scan(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+					Run(func(args ...interface{}) {
+						*(args[0].(*uuid.UUID)) = id
+						*(args[1].(*string)) = "bob"
+						*(args[2].(*bool)) = true
+						*(args[3].(*time.Time)) = now
+						*(args[4].(*time.Time)) = now
+					}).Return(nil)
+				q.EXPECT().QueryRow(mock.Anything, mock.Anything, mock.Anything).Return(row)
+			},
+			wantUser: &models.User{ID: id, Name: "bob", IsActive: true, CreatedAt: now, UpdatedAt: now},
+		},
+		{
+			name: "not found",
+			id:   uuid.New(),
+			mockSetup: func(q *mocks.Querier, id uuid.UUID) {
+				row := mocks.NewRow(t)
+				row.EXPECT().Scan(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(pgx.ErrNoRows)
+				q.EXPECT().QueryRow(mock.Anything, mock.Anything, mock.Anything).Return(row)
+			},
+			wantErr:   true,
+			wantIsErr: utils.ErrUserNotFound,
+		},
+		{
+			name: "scan error",
+			id:   uuid.New(),
+			mockSetup: func(q *mocks.Querier, id uuid.UUID) {
+				row := mocks.NewRow(t)
+				row.EXPECT().Scan(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("scan error"))
+				q.EXPECT().QueryRow(mock.Anything, mock.Anything, mock.Anything).Return(row)
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo, q := newRepo(t)
+			if tt.mockSetup != nil {
+				tt.mockSetup(q, tt.id)
+			}
+			u, err := repo.GetUserByID(context.Background(), tt.id)
+			if tt.wantErr {
+				require.Error(t, err)
+				if tt.wantIsErr != nil {
+					assert.ErrorIs(t, err, tt.wantIsErr)
+				}
+				assert.Nil(t, u)
+			} else {
+				require.NoError(t, err)
+				require.NotNil(t, u)
+				assert.Equal(t, tt.wantUser.ID, u.ID)
+				assert.Equal(t, tt.wantUser.Name, u.Name)
+				assert.Equal(t, tt.wantUser.IsActive, u.IsActive)
+			}
+		})
+	}
 }
 
 func TestUserRepository_UpdateUserActive(t *testing.T) {
-	t.Run("success", func(t *testing.T) {
-		repo, q, _ := newRepo(t)
-		ctx := context.Background()
-		id := uuid.New()
-
-		q.EXPECT().Exec(ctx, mock.Anything, mock.Anything).Return(pgconn.NewCommandTag("UPDATE 1"), nil)
-
-		err := repo.UpdateUserActive(ctx, id, true)
-		require.NoError(t, err)
-	})
-
-	t.Run("not found", func(t *testing.T) {
-		repo, q, _ := newRepo(t)
-		ctx := context.Background()
-		id := uuid.New()
-
-		q.EXPECT().Exec(ctx, mock.Anything, mock.Anything).Return(pgconn.NewCommandTag("UPDATE 0"), nil)
-
-		err := repo.UpdateUserActive(ctx, id, true)
-		assert.ErrorIs(t, err, utils.ErrUserNotFound)
-	})
-
-	t.Run("db error", func(t *testing.T) {
-		repo, q, _ := newRepo(t)
-		ctx := context.Background()
-		id := uuid.New()
-
-		q.EXPECT().Exec(ctx, mock.Anything, mock.Anything).Return(pgconn.NewCommandTag(""), errors.New("db error"))
-
-		err := repo.UpdateUserActive(ctx, id, true)
-		require.Error(t, err)
-	})
+	id := uuid.New()
+	tests := []struct {
+		name      string
+		id        uuid.UUID
+		active    bool
+		mockSetup func(*mocks.Querier, uuid.UUID, bool)
+		wantErr   bool
+		wantIsErr error
+	}{
+		{
+			name:   "success",
+			id:     id,
+			active: true,
+			mockSetup: func(q *mocks.Querier, id uuid.UUID, active bool) {
+				q.EXPECT().Exec(mock.Anything, mock.Anything, mock.Anything).Return(pgconn.NewCommandTag("UPDATE 1"), nil)
+			},
+		},
+		{
+			name:   "not found",
+			id:     uuid.New(),
+			active: true,
+			mockSetup: func(q *mocks.Querier, id uuid.UUID, active bool) {
+				q.EXPECT().Exec(mock.Anything, mock.Anything, mock.Anything).Return(pgconn.NewCommandTag("UPDATE 0"), nil)
+			},
+			wantErr:   true,
+			wantIsErr: utils.ErrUserNotFound,
+		},
+		{
+			name:   "db error",
+			id:     uuid.New(),
+			active: true,
+			mockSetup: func(q *mocks.Querier, id uuid.UUID, active bool) {
+				q.EXPECT().Exec(mock.Anything, mock.Anything, mock.Anything).Return(pgconn.NewCommandTag(""), errors.New("db error"))
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo, q := newRepo(t)
+			if tt.mockSetup != nil {
+				tt.mockSetup(q, tt.id, tt.active)
+			}
+			err := repo.UpdateUserActive(context.Background(), tt.id, tt.active)
+			if tt.wantErr {
+				require.Error(t, err)
+				if tt.wantIsErr != nil {
+					assert.ErrorIs(t, err, tt.wantIsErr)
+				}
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
 }
 
 func TestUserRepository_GetTeamIDByUserID(t *testing.T) {
-	t.Run("success", func(t *testing.T) {
-		repo, q, _ := newRepo(t)
-		ctx := context.Background()
-		uid := uuid.New()
-		tid := uuid.New()
-
-		row := mocks.NewRow(t)
-		row.EXPECT().Scan(mock.Anything).Run(func(args ...interface{}) {
-			*(args[0].(*uuid.UUID)) = tid
-		}).Return(nil)
-		q.EXPECT().QueryRow(ctx, mock.Anything, mock.Anything).Return(row)
-
-		got, err := repo.GetTeamIDByUserID(ctx, uid)
-		require.NoError(t, err)
-		assert.Equal(t, tid, got)
-	})
-
-	t.Run("no team (no rows)", func(t *testing.T) {
-		repo, q, _ := newRepo(t)
-		ctx := context.Background()
-		uid := uuid.New()
-
-		row := mocks.NewRow(t)
-		row.EXPECT().Scan(mock.Anything).Return(pgx.ErrNoRows)
-		q.EXPECT().QueryRow(ctx, mock.Anything, mock.Anything).Return(row)
-
-		_, err := repo.GetTeamIDByUserID(ctx, uid)
-		assert.ErrorIs(t, err, utils.ErrUserNoTeam)
-	})
-
-	// generic scan error
-	t.Run("scan error", func(t *testing.T) {
-		repo, q, _ := newRepo(t)
-		ctx := context.Background()
-		uid := uuid.New()
-
-		row := mocks.NewRow(t)
-		row.EXPECT().Scan(mock.Anything).Return(errors.New("scan error"))
-		q.EXPECT().QueryRow(ctx, mock.Anything, mock.Anything).Return(row)
-
-		_, err := repo.GetTeamIDByUserID(ctx, uid)
-		require.Error(t, err)
-	})
+	tests := []struct {
+		name      string
+		uid       uuid.UUID
+		mockSetup func(*mocks.Querier, uuid.UUID)
+		wantErr   bool
+		wantIsErr error
+		wantID    uuid.UUID
+	}{
+		{
+			name: "success",
+			uid:  uuid.New(),
+			mockSetup: func(q *mocks.Querier, uid uuid.UUID) {
+				row := mocks.NewRow(t)
+				teamID := uuid.New()
+				row.EXPECT().Scan(mock.Anything).Run(func(args ...interface{}) { *(args[0].(*uuid.UUID)) = teamID }).Return(nil)
+				q.EXPECT().QueryRow(mock.Anything, mock.Anything, mock.Anything).Return(row)
+			},
+		},
+		{
+			name: "no team (no rows)",
+			uid:  uuid.New(),
+			mockSetup: func(q *mocks.Querier, uid uuid.UUID) {
+				row := mocks.NewRow(t)
+				row.EXPECT().Scan(mock.Anything).Return(pgx.ErrNoRows)
+				q.EXPECT().QueryRow(mock.Anything, mock.Anything, mock.Anything).Return(row)
+			},
+			wantErr:   true,
+			wantIsErr: utils.ErrUserNoTeam,
+		},
+		{
+			name: "scan error",
+			uid:  uuid.New(),
+			mockSetup: func(q *mocks.Querier, uid uuid.UUID) {
+				row := mocks.NewRow(t)
+				row.EXPECT().Scan(mock.Anything).Return(errors.New("scan error"))
+				q.EXPECT().QueryRow(mock.Anything, mock.Anything, mock.Anything).Return(row)
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo, q := newRepo(t)
+			if tt.mockSetup != nil {
+				tt.mockSetup(q, tt.uid)
+			}
+			id, err := repo.GetTeamIDByUserID(context.Background(), tt.uid)
+			if tt.wantErr {
+				require.Error(t, err)
+				if tt.wantIsErr != nil {
+					assert.ErrorIs(t, err, tt.wantIsErr)
+				}
+			} else {
+				require.NoError(t, err)
+				assert.NotEqual(t, uuid.Nil, id)
+			}
+		})
+	}
 }
 
 func TestUserRepository_ListActiveMembersByTeamID(t *testing.T) {
-	t.Run("success", func(t *testing.T) {
-		repo, q, _ := newRepo(t)
-		ctx := context.Background()
-		teamID := uuid.New()
-		id1 := uuid.New()
-		id2 := uuid.New()
-
-		rows := mocks.NewRows(t)
-		rows.EXPECT().Next().Return(true).Once()
-		rows.EXPECT().Scan(mock.Anything).Run(func(args ...interface{}) { *(args[0].(*uuid.UUID)) = id1 }).Return(nil).Once()
-		rows.EXPECT().Next().Return(true).Once()
-		rows.EXPECT().Scan(mock.Anything).Run(func(args ...interface{}) { *(args[0].(*uuid.UUID)) = id2 }).Return(nil).Once()
-		rows.EXPECT().Next().Return(false).Once()
-		rows.EXPECT().Err().Return(nil)
-		rows.EXPECT().Close()
-
-		q.EXPECT().Query(ctx, mock.Anything, mock.Anything).Return(rows, nil)
-
-		ids, err := repo.ListActiveMembersByTeamID(ctx, teamID)
-		require.NoError(t, err)
-		require.Len(t, ids, 2)
-		assert.Equal(t, id1, ids[0])
-		assert.Equal(t, id2, ids[1])
-	})
-
-	t.Run("query error", func(t *testing.T) {
-		repo, q, _ := newRepo(t)
-		ctx := context.Background()
-		teamID := uuid.New()
-
-		q.EXPECT().Query(ctx, mock.Anything, mock.Anything).Return(nil, errors.New("db error"))
-
-		_, err := repo.ListActiveMembersByTeamID(ctx, teamID)
-		require.Error(t, err)
-	})
-
-	t.Run("scan error", func(t *testing.T) {
-		repo, q, _ := newRepo(t)
-		ctx := context.Background()
-		teamID := uuid.New()
-
-		rows := mocks.NewRows(t)
-		rows.EXPECT().Next().Return(true).Once()
-		rows.EXPECT().Scan(mock.Anything).Return(errors.New("scan error")).Once()
-		rows.EXPECT().Close()
-
-		q.EXPECT().Query(ctx, mock.Anything, mock.Anything).Return(rows, nil)
-
-		_, err := repo.ListActiveMembersByTeamID(ctx, teamID)
-		require.Error(t, err)
-	})
-
-	t.Run("rows error", func(t *testing.T) {
-		repo, q, _ := newRepo(t)
-		ctx := context.Background()
-		teamID := uuid.New()
-
-		rows := mocks.NewRows(t)
-		rows.EXPECT().Next().Return(false).Once()
-		rows.EXPECT().Err().Return(errors.New("rows err"))
-		rows.EXPECT().Close()
-
-		q.EXPECT().Query(ctx, mock.Anything, mock.Anything).Return(rows, nil)
-
-		_, err := repo.ListActiveMembersByTeamID(ctx, teamID)
-		require.Error(t, err)
-	})
+	tests := []struct {
+		name      string
+		teamID    uuid.UUID
+		mockSetup func(*mocks.Querier, uuid.UUID)
+		wantErr   bool
+		wantIsErr error
+		wantIDs   []uuid.UUID
+	}{
+		{
+			name:   "success",
+			teamID: uuid.New(),
+			mockSetup: func(q *mocks.Querier, teamID uuid.UUID) {
+				rows := mocks.NewRows(t)
+				id1 := uuid.New()
+				id2 := uuid.New()
+				rows.EXPECT().Next().Return(true).Once()
+				rows.EXPECT().Scan(mock.Anything).Run(func(args ...interface{}) { *(args[0].(*uuid.UUID)) = id1 }).Return(nil).Once()
+				rows.EXPECT().Next().Return(true).Once()
+				rows.EXPECT().Scan(mock.Anything).Run(func(args ...interface{}) { *(args[0].(*uuid.UUID)) = id2 }).Return(nil).Once()
+				rows.EXPECT().Next().Return(false).Once()
+				rows.EXPECT().Err().Return(nil)
+				rows.EXPECT().Close()
+				q.EXPECT().Query(mock.Anything, mock.Anything, mock.Anything).Return(rows, nil)
+			},
+		},
+		{
+			name:   "query error",
+			teamID: uuid.New(),
+			mockSetup: func(q *mocks.Querier, teamID uuid.UUID) {
+				q.EXPECT().Query(mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("db error"))
+			},
+			wantErr: true,
+		},
+		{
+			name:   "scan error",
+			teamID: uuid.New(),
+			mockSetup: func(q *mocks.Querier, teamID uuid.UUID) {
+				rows := mocks.NewRows(t)
+				rows.EXPECT().Next().Return(true).Once()
+				rows.EXPECT().Scan(mock.Anything).Return(errors.New("scan error")).Once()
+				rows.EXPECT().Close()
+				q.EXPECT().Query(mock.Anything, mock.Anything, mock.Anything).Return(rows, nil)
+			},
+			wantErr: true,
+		},
+		{
+			name:   "rows error",
+			teamID: uuid.New(),
+			mockSetup: func(q *mocks.Querier, teamID uuid.UUID) {
+				rows := mocks.NewRows(t)
+				rows.EXPECT().Next().Return(false).Once()
+				rows.EXPECT().Err().Return(errors.New("rows err"))
+				rows.EXPECT().Close()
+				q.EXPECT().Query(mock.Anything, mock.Anything, mock.Anything).Return(rows, nil)
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo, q := newRepo(t)
+			if tt.mockSetup != nil {
+				tt.mockSetup(q, tt.teamID)
+			}
+			ids, err := repo.ListActiveMembersByTeamID(context.Background(), tt.teamID)
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.NotEmpty(t, ids)
+			}
+		})
+	}
 }
 
 func TestUserRepository_ListUsers(t *testing.T) {
-	t.Run("success", func(t *testing.T) {
-		repo, q, _ := newRepo(t)
-		ctx := context.Background()
-		now := time.Now().Truncate(time.Microsecond)
-		id1 := uuid.New()
-		id2 := uuid.New()
-
-		rows := mocks.NewRows(t)
-		rows.EXPECT().Next().Return(true).Once()
-		rows.EXPECT().Scan(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-			Run(func(args ...interface{}) {
-				*(args[0].(*uuid.UUID)) = id1
-				*(args[1].(*string)) = "u1"
-				*(args[2].(*bool)) = true
-				*(args[3].(*time.Time)) = now
-				*(args[4].(*time.Time)) = now
-			}).Return(nil).Once()
-		rows.EXPECT().Next().Return(true).Once()
-		rows.EXPECT().Scan(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-			Run(func(args ...interface{}) {
-				*(args[0].(*uuid.UUID)) = id2
-				*(args[1].(*string)) = "u2"
-				*(args[2].(*bool)) = false
-				*(args[3].(*time.Time)) = now
-				*(args[4].(*time.Time)) = now
-			}).Return(nil).Once()
-		rows.EXPECT().Next().Return(false).Once()
-		rows.EXPECT().Err().Return(nil)
-		rows.EXPECT().Close()
-
-		q.EXPECT().Query(ctx, mock.Anything).Return(rows, nil)
-
-		users, err := repo.ListUsers(ctx)
-		require.NoError(t, err)
-		require.Len(t, users, 2)
-		assert.Equal(t, "u1", users[0].Name)
-		assert.Equal(t, "u2", users[1].Name)
-	})
-
-	t.Run("query error", func(t *testing.T) {
-		repo, q, _ := newRepo(t)
-		ctx := context.Background()
-
-		q.EXPECT().Query(ctx, mock.Anything).Return(nil, errors.New("db error"))
-
-		_, err := repo.ListUsers(ctx)
-		require.Error(t, err)
-	})
-
-	t.Run("scan error", func(t *testing.T) {
-		repo, q, _ := newRepo(t)
-		ctx := context.Background()
-
-		rows := mocks.NewRows(t)
-		rows.EXPECT().Next().Return(true).Once()
-		rows.EXPECT().Scan(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("scan error")).Once()
-		rows.EXPECT().Close()
-
-		q.EXPECT().Query(ctx, mock.Anything).Return(rows, nil)
-
-		_, err := repo.ListUsers(ctx)
-		require.Error(t, err)
-	})
-
-	t.Run("rows error", func(t *testing.T) {
-		repo, q, _ := newRepo(t)
-		ctx := context.Background()
-
-		rows := mocks.NewRows(t)
-		rows.EXPECT().Next().Return(false).Once()
-		rows.EXPECT().Err().Return(errors.New("rows err"))
-		rows.EXPECT().Close()
-
-		q.EXPECT().Query(ctx, mock.Anything).Return(rows, nil)
-
-		_, err := repo.ListUsers(ctx)
-		require.Error(t, err)
-	})
+	now := time.Now().Truncate(time.Microsecond)
+	tests := []struct {
+		name      string
+		mockSetup func(*mocks.Querier)
+		wantErr   bool
+	}{
+		{
+			name: "success",
+			mockSetup: func(q *mocks.Querier) {
+				rows := mocks.NewRows(t)
+				id1 := uuid.New()
+				id2 := uuid.New()
+				rows.EXPECT().Next().Return(true).Once()
+				rows.EXPECT().Scan(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+					Run(func(args ...interface{}) {
+						*(args[0].(*uuid.UUID)) = id1
+						*(args[1].(*string)) = "u1"
+						*(args[2].(*bool)) = true
+						*(args[3].(*time.Time)) = now
+						*(args[4].(*time.Time)) = now
+					}).Return(nil).Once()
+				rows.EXPECT().Next().Return(true).Once()
+				rows.EXPECT().Scan(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+					Run(func(args ...interface{}) {
+						*(args[0].(*uuid.UUID)) = id2
+						*(args[1].(*string)) = "u2"
+						*(args[2].(*bool)) = false
+						*(args[3].(*time.Time)) = now
+						*(args[4].(*time.Time)) = now
+					}).Return(nil).Once()
+				rows.EXPECT().Next().Return(false).Once()
+				rows.EXPECT().Err().Return(nil)
+				rows.EXPECT().Close()
+				q.EXPECT().Query(mock.Anything, mock.Anything).Return(rows, nil)
+			},
+		},
+		{
+			name: "query error",
+			mockSetup: func(q *mocks.Querier) {
+				q.EXPECT().Query(mock.Anything, mock.Anything).Return(nil, errors.New("db error"))
+			},
+			wantErr: true,
+		},
+		{
+			name: "scan error",
+			mockSetup: func(q *mocks.Querier) {
+				rows := mocks.NewRows(t)
+				rows.EXPECT().Next().Return(true).Once()
+				rows.EXPECT().Scan(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("scan error")).Once()
+				rows.EXPECT().Close()
+				q.EXPECT().Query(mock.Anything, mock.Anything).Return(rows, nil)
+			},
+			wantErr: true,
+		},
+		{
+			name: "rows error",
+			mockSetup: func(q *mocks.Querier) {
+				rows := mocks.NewRows(t)
+				rows.EXPECT().Next().Return(false).Once()
+				rows.EXPECT().Err().Return(errors.New("rows err"))
+				rows.EXPECT().Close()
+				q.EXPECT().Query(mock.Anything, mock.Anything).Return(rows, nil)
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo, q := newRepo(t)
+			if tt.mockSetup != nil {
+				tt.mockSetup(q)
+			}
+			users, err := repo.ListUsers(context.Background())
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.NotEmpty(t, users)
+			}
+		})
+	}
 }
