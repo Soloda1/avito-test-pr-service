@@ -1,7 +1,7 @@
 package reviewerselector
 
 import (
-	"math/rand"
+	rand "math/rand/v2"
 	"testing"
 
 	"github.com/google/uuid"
@@ -17,54 +17,57 @@ func TestRandomReviewerSelector_Select(t *testing.T) {
 	}
 
 	tests := []struct {
-		name        string
-		candidates  []uuid.UUID
-		count       int
-		seed        int64
-		expectNil   bool
-		expectedLen int
+		name       string
+		candidates []uuid.UUID
+		count      int
+		seed       uint64
+		expectLen  int
 	}{
 		{
-			name:        "select subset",
-			candidates:  candidates,
-			count:       2,
-			seed:        1,
-			expectedLen: 2,
+			name:       "select subset",
+			candidates: candidates,
+			count:      2,
+			seed:       1,
+			expectLen:  2,
 		},
 		{
-			name:        "count greater than candidates",
-			candidates:  candidates[:2],
-			count:       5,
-			seed:        42,
-			expectedLen: 2,
+			name:       "count greater than candidates",
+			candidates: candidates[:2],
+			count:      5,
+			seed:       42,
+			expectLen:  2,
 		},
 		{
 			name:       "zero count returns nil",
 			candidates: candidates,
 			count:      0,
 			seed:       99,
-			expectNil:  true,
+			expectLen:  0,
 		},
 		{
 			name:       "no candidates",
 			candidates: nil,
 			count:      2,
 			seed:       7,
-			expectNil:  true,
+			expectLen:  0,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			selector := NewRandomReviewerSelectorWithRand(rand.New(rand.NewSource(tt.seed)))
+			selector := NewRandomReviewerSelectorWithRand(rand.New(rand.NewPCG(tt.seed, tt.seed>>1|1)))
 			result := selector.Select(tt.candidates, tt.count)
 
-			if tt.expectNil {
+			if tt.expectLen == 0 && tt.count > 0 && len(tt.candidates) == 0 {
+				require.Nil(t, result)
+				return
+			}
+			if tt.expectLen == 0 && tt.count == 0 {
 				require.Nil(t, result)
 				return
 			}
 
-			require.Len(t, result, tt.expectedLen)
+			require.Len(t, result, tt.expectLen)
 
 			seen := make(map[uuid.UUID]struct{}, len(result))
 			for _, id := range result {

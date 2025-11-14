@@ -1,9 +1,10 @@
 package reviewerselector
 
 import (
-	"math/rand"
 	"sync"
 	"time"
+
+	rand "math/rand/v2"
 
 	"github.com/google/uuid"
 
@@ -18,12 +19,14 @@ type RandomReviewerSelector struct {
 }
 
 func NewRandomReviewerSelector() services.ReviewerSelector {
-	return NewRandomReviewerSelectorWithRand(rand.New(rand.NewSource(time.Now().UnixNano())))
+	seed := uint64(time.Now().UnixNano())
+	return NewRandomReviewerSelectorWithRand(rand.New(rand.NewPCG(seed, seed>>1|1)))
 }
 
 func NewRandomReviewerSelectorWithRand(r *rand.Rand) services.ReviewerSelector {
 	if r == nil {
-		r = rand.New(rand.NewSource(time.Now().UnixNano()))
+		seed := uint64(time.Now().UnixNano())
+		r = rand.New(rand.NewPCG(seed, seed>>1|1))
 	}
 	return &RandomReviewerSelector{rnd: r}
 }
@@ -36,10 +39,11 @@ func (s *RandomReviewerSelector) Select(candidates []uuid.UUID, count int) []uui
 	shuffled := append([]uuid.UUID(nil), candidates...)
 	if len(shuffled) > 1 {
 		s.mu.Lock()
+		defer s.mu.Unlock()
 		s.rnd.Shuffle(len(shuffled), func(i, j int) {
 			shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
 		})
-		s.mu.Unlock()
+
 	}
 
 	if count > len(shuffled) {
