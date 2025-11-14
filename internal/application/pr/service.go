@@ -60,6 +60,10 @@ func (s *Service) CreatePR(ctx context.Context, authorID uuid.UUID, title string
 	filtered := utils.FilterUUIDs(candidates, map[uuid.UUID]struct{}{authorID: {}})
 
 	selected := s.selector.Select(filtered, 2)
+	if selected == nil {
+		s.log.Info("CreatePR no reviewers available", "author_id", authorID)
+		selected = []uuid.UUID{}
+	}
 
 	prRepo := tx.PRRepository()
 	pr := &models.PullRequest{
@@ -141,18 +145,17 @@ func (s *Service) ReassignReviewer(ctx context.Context, prID uuid.UUID, oldRevie
 	if err := prRepo.AddReviewer(ctx, prID, newReviewerID); err != nil {
 		return nil, err
 	}
-	for i, id := range pr.ReviewerIDs {
-		if id == oldReviewerID {
-			pr.ReviewerIDs[i] = newReviewerID
-			break
-		}
+	updatedPR, err := prRepo.GetPRByID(ctx, prID)
+	if err != nil {
+		return nil, err
 	}
+
 	if err := tx.Commit(ctx); err != nil {
 		s.log.Error("Reassign commit failed", "err", err, "pr_id", prID)
 		return nil, err
 	}
 	commit = true
-	return pr, nil
+	return updatedPR, nil
 }
 
 func (s *Service) MergePR(ctx context.Context, prID uuid.UUID) (*models.PullRequest, error) {

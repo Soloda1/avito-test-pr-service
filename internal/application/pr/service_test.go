@@ -152,6 +152,7 @@ func TestPRService_ReassignReviewer(t *testing.T) {
 				sel.EXPECT().Select(mock.MatchedBy(func(ids []uuid.UUID) bool { return len(ids) == 1 && ids[0] == newID }), 1).Return([]uuid.UUID{newID})
 				prRepo.EXPECT().RemoveReviewer(ctx, prID, oldID).Return(nil)
 				prRepo.EXPECT().AddReviewer(ctx, prID, newID).Return(nil)
+				prRepo.EXPECT().GetPRByID(ctx, prID).Return(&models.PullRequest{ID: prID, AuthorID: authorID, Status: models.PRStatusOPEN, ReviewerIDs: []uuid.UUID{newID}}, nil)
 				tx.EXPECT().Commit(ctx).Return(nil)
 			},
 		},
