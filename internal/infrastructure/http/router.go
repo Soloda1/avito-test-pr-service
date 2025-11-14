@@ -3,7 +3,7 @@ package http
 import (
 	input "avito-test-pr-service/internal/domain/ports/input"
 	"avito-test-pr-service/internal/infrastructure/config"
-	"avito-test-pr-service/internal/infrastructure/http/handlers"
+	"avito-test-pr-service/internal/infrastructure/http/handlers/user"
 	"avito-test-pr-service/internal/infrastructure/http/middleware"
 	"avito-test-pr-service/internal/infrastructure/logger"
 	"net/http"
@@ -43,7 +43,7 @@ func (r *Router) Setup(cfg *config.Config) {
 }
 
 func (r *Router) setupUserRoutes() http.Handler {
-	h := handlers.NewUserHandler(r.userService, r.prService, r.log)
+	h := user.NewUserHandler(r.userService, r.prService, r.log)
 	sub := chi.NewRouter()
 	sub.Post("/setIsActive", h.SetIsActive)
 	sub.Get("/getReview", h.GetReviews)
