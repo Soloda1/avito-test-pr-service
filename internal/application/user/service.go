@@ -22,6 +22,7 @@ func NewService(uow uow.UnitOfWork, log ports.Logger) input.UserInputPort {
 
 func (s *Service) CreateUser(ctx context.Context, name string, isActive bool) (*models.User, error) {
 	if name == "" {
+		s.log.Error("CreateUser invalid argument", "err", utils.ErrInvalidArgument, "name", name)
 		return nil, utils.ErrInvalidArgument
 	}
 
@@ -57,6 +58,7 @@ func (s *Service) CreateUser(ctx context.Context, name string, isActive bool) (*
 
 func (s *Service) UpdateUserActive(ctx context.Context, id uuid.UUID, isActive bool) error {
 	if id == uuid.Nil {
+		s.log.Error("UpdateUserActive invalid argument", "err", utils.ErrInvalidArgument, "user_id", id)
 		return utils.ErrInvalidArgument
 	}
 
@@ -97,6 +99,7 @@ func (s *Service) UpdateUserActive(ctx context.Context, id uuid.UUID, isActive b
 
 func (s *Service) GetUser(ctx context.Context, id uuid.UUID) (*models.User, error) {
 	if id == uuid.Nil {
+		s.log.Error("GetUser invalid argument", "err", utils.ErrInvalidArgument, "user_id", id)
 		return nil, utils.ErrInvalidArgument
 	}
 
@@ -117,6 +120,7 @@ func (s *Service) GetUser(ctx context.Context, id uuid.UUID) (*models.User, erro
 		return nil, err
 	}
 
+	s.log.Info("GetUser success", "user_id", id)
 	return u, nil
 }
 
@@ -137,5 +141,6 @@ func (s *Service) ListUsers(ctx context.Context) ([]*models.User, error) {
 		s.log.Error("ListUsers failed", "err", err)
 		return nil, err
 	}
+	s.log.Info("ListUsers success", "count", len(users))
 	return users, nil
 }

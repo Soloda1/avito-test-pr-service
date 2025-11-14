@@ -72,15 +72,18 @@ func (s *Service) AddMember(ctx context.Context, teamID uuid.UUID, userID uuid.U
 
 	teamrepo := tx.TeamRepository()
 	if _, err := teamrepo.GetTeamByID(ctx, teamID); err != nil {
+		s.log.Error("AddMember team fetch failed", "err", err, "team_id", teamID)
 		return err
 	}
 
 	userrepo := tx.UserRepository()
 	if _, err := userrepo.GetUserByID(ctx, userID); err != nil {
+		s.log.Error("AddMember user fetch failed", "err", err, "user_id", userID, "team_id", teamID)
 		return err
 	}
 
 	if err := teamrepo.AddMember(ctx, teamID, userID); err != nil {
+		s.log.Error("AddMember repo failed", "err", err, "team_id", teamID, "user_id", userID)
 		return err
 	}
 
@@ -112,15 +115,18 @@ func (s *Service) RemoveMember(ctx context.Context, teamID uuid.UUID, userID uui
 	teamrepo := tx.TeamRepository()
 
 	if _, err := teamrepo.GetTeamByID(ctx, teamID); err != nil {
+		s.log.Error("RemoveMember team fetch failed", "err", err, "team_id", teamID)
 		return err
 	}
 
 	userrepo := tx.UserRepository()
 	if _, err := userrepo.GetUserByID(ctx, userID); err != nil {
+		s.log.Error("RemoveMember user fetch failed", "err", err, "user_id", userID, "team_id", teamID)
 		return err
 	}
 
 	if err := teamrepo.RemoveMember(ctx, teamID, userID); err != nil {
+		s.log.Error("RemoveMember repo failed", "err", err, "team_id", teamID, "user_id", userID)
 		return err
 	}
 
@@ -147,6 +153,7 @@ func (s *Service) GetTeam(ctx context.Context, id uuid.UUID) (*models.Team, erro
 	repo := tx.TeamRepository()
 	team, err := repo.GetTeamByID(ctx, id)
 	if err != nil {
+		s.log.Error("GetTeam repo failed", "err", err, "team_id", id)
 		return nil, err
 	}
 
@@ -164,6 +171,7 @@ func (s *Service) ListTeams(ctx context.Context) ([]*models.Team, error) {
 	repo := tx.TeamRepository()
 	res, err := repo.ListTeams(ctx)
 	if err != nil {
+		s.log.Error("ListTeams repo failed", "err", err)
 		return nil, err
 	}
 	return res, nil

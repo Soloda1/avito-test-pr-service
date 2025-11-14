@@ -49,11 +49,13 @@ func (s *Service) CreatePR(ctx context.Context, authorID uuid.UUID, title string
 
 	teamID, err := userRepo.GetTeamIDByUserID(ctx, authorID)
 	if err != nil {
+		s.log.Error("CreatePR get team failed", "err", err, "author_id", authorID)
 		return nil, err
 	}
 
 	candidates, err := userRepo.ListActiveMembersByTeamID(ctx, teamID)
 	if err != nil {
+		s.log.Error("CreatePR list candidates failed", "err", err, "author_id", authorID, "team_id", teamID)
 		return nil, err
 	}
 
@@ -107,22 +109,27 @@ func (s *Service) ReassignReviewer(ctx context.Context, prID uuid.UUID, oldRevie
 	prRepo := tx.PRRepository()
 	pr, err := prRepo.LockPRByID(ctx, prID)
 	if err != nil {
+		s.log.Error("Reassign lock failed", "err", err, "pr_id", prID)
 		return nil, err
 	}
 	if pr.Status == models.PRStatusMERGED {
+		s.log.Error("Reassign on merged PR", "err", utils.ErrAlreadyMerged, "pr_id", prID)
 		return nil, utils.ErrAlreadyMerged
 	}
 	if !utils.ContainsUUID(pr.ReviewerIDs, oldReviewerID) {
+		s.log.Error("Reassign reviewer not assigned", "err", utils.ErrReviewerNotAssigned, "pr_id", prID, "old_reviewer_id", oldReviewerID)
 		return nil, utils.ErrReviewerNotAssigned
 	}
 
 	userRepo := tx.UserRepository()
 	teamID, err := userRepo.GetTeamIDByUserID(ctx, pr.AuthorID)
 	if err != nil {
+		s.log.Error("Reassign get author team failed", "err", err, "pr_id", prID, "author_id", pr.AuthorID)
 		return nil, err
 	}
 	members, err := userRepo.ListActiveMembersByTeamID(ctx, teamID)
 	if err != nil {
+		s.log.Error("Reassign list team members failed", "err", err, "pr_id", prID, "team_id", teamID)
 		return nil, err
 	}
 	ex := make(map[uuid.UUID]struct{}, len(pr.ReviewerIDs)+1)
@@ -132,21 +139,26 @@ func (s *Service) ReassignReviewer(ctx context.Context, prID uuid.UUID, oldRevie
 	}
 	pool := utils.FilterUUIDs(members, ex)
 	if len(pool) == 0 {
+		s.log.Error("Reassign no replacement candidates", "err", utils.ErrNoReplacementCandidates, "pr_id", prID)
 		return nil, utils.ErrNoReplacementCandidates
 	}
 	picked := s.selector.Select(pool, 1)
 	if len(picked) == 0 {
+		s.log.Error("Reassign selector returned no candidate", "err", utils.ErrNoReplacementCandidates, "pr_id", prID)
 		return nil, utils.ErrNoReplacementCandidates
 	}
 	newReviewerID := picked[0]
 	if err := prRepo.RemoveReviewer(ctx, prID, oldReviewerID); err != nil {
+		s.log.Error("Reassign remove reviewer failed", "err", err, "pr_id", prID, "old_reviewer_id", oldReviewerID)
 		return nil, err
 	}
 	if err := prRepo.AddReviewer(ctx, prID, newReviewerID); err != nil {
+		s.log.Error("Reassign add reviewer failed", "err", err, "pr_id", prID, "new_reviewer_id", newReviewerID)
 		return nil, err
 	}
 	updatedPR, err := prRepo.GetPRByID(ctx, prID)
 	if err != nil {
+		s.log.Error("Reassign refetch failed", "err", err, "pr_id", prID)
 		return nil, err
 	}
 
@@ -155,6 +167,7 @@ func (s *Service) ReassignReviewer(ctx context.Context, prID uuid.UUID, oldRevie
 		return nil, err
 	}
 	commit = true
+	s.log.Info("Reassign success", "pr_id", prID, "old_reviewer_id", oldReviewerID, "new_reviewer_id", newReviewerID)
 	return updatedPR, nil
 }
 
@@ -177,9 +190,11 @@ func (s *Service) MergePR(ctx context.Context, prID uuid.UUID) (*models.PullRequ
 	prRepo := tx.PRRepository()
 	pr, err := prRepo.LockPRByID(ctx, prID)
 	if err != nil {
+		s.log.Error("MergePR lock failed", "err", err, "pr_id", prID)
 		return nil, err
 	}
 	if pr.Status == models.PRStatusMERGED {
+		s.log.Info("MergePR idempotent already merged", "pr_id", prID)
 		if err := tx.Commit(ctx); err != nil {
 			return nil, err
 		}
@@ -189,6 +204,7 @@ func (s *Service) MergePR(ctx context.Context, prID uuid.UUID) (*models.PullRequ
 
 	now := time.Now().UTC()
 	if err := prRepo.UpdateStatus(ctx, prID, models.PRStatusMERGED, &now); err != nil {
+		s.log.Error("MergePR update status failed", "err", err, "pr_id", prID)
 		return nil, err
 	}
 	pr.Status = models.PRStatusMERGED
@@ -199,6 +215,7 @@ func (s *Service) MergePR(ctx context.Context, prID uuid.UUID) (*models.PullRequ
 		return nil, err
 	}
 	commit = true
+	s.log.Info("MergePR success", "pr_id", prID)
 	return pr, nil
 }
 
@@ -216,6 +233,7 @@ func (s *Service) GetPR(ctx context.Context, prID uuid.UUID) (*models.PullReques
 	prRepo := tx.PRRepository()
 	pr, err := prRepo.GetPRByID(ctx, prID)
 	if err != nil {
+		s.log.Error("GetPR repo failed", "err", err, "pr_id", prID)
 		return nil, err
 	}
 	return pr, nil
@@ -235,6 +253,7 @@ func (s *Service) ListPRsByAssignee(ctx context.Context, reviewerID uuid.UUID, s
 	prRepo := tx.PRRepository()
 	res, err := prRepo.ListPRsByReviewer(ctx, reviewerID, status)
 	if err != nil {
+		s.log.Error("ListPRs repo failed", "err", err, "reviewer_id", reviewerID)
 		return nil, err
 	}
 
