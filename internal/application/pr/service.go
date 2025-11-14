@@ -61,8 +61,6 @@ func (s *Service) CreatePR(ctx context.Context, authorID uuid.UUID, title string
 
 	selected := s.selector.Select(filtered, 2)
 
-	selected = utils.UniqueUUIDs(selected)
-
 	prRepo := tx.PRRepository()
 	pr := &models.PullRequest{
 		ID:          uuid.New(),
