@@ -205,8 +205,8 @@ func (s *Service) CreateTeamWithMembers(ctx context.Context, name string, member
 	userRepo := tx.UserRepository()
 
 	var resultUsers []*models.User
-	for i, memberSpec := range members {
-		processedUser, err := s.processTeamMember(ctx, userRepo, memberSpec, i)
+	for _, memberSpec := range members {
+		processedUser, err := s.processTeamMember(ctx, userRepo, memberSpec)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -230,7 +230,7 @@ func (s *Service) CreateTeamWithMembers(ctx context.Context, name string, member
 	return team, resultUsers, nil
 }
 
-func (s *Service) processTeamMember(ctx context.Context, userRepo user_port.UserRepository, member *models.User, index int) (*models.User, error) {
+func (s *Service) processTeamMember(ctx context.Context, userRepo user_port.UserRepository, member *models.User) (*models.User, error) {
 	if member.ID == uuid.Nil {
 		member.ID = uuid.New()
 		if err := userRepo.CreateUser(ctx, member); err != nil {
@@ -249,7 +249,7 @@ func (s *Service) processTeamMember(ctx context.Context, userRepo user_port.User
 			}
 			return member, nil
 		}
-		s.log.Error("processTeamMember get user failed", "err", err, "user_id", member.ID, "index", index)
+		s.log.Error("processTeamMember get user failed", "err", err, "user_id", member.ID)
 		return nil, err
 	}
 
