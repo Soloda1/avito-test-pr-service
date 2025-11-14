@@ -132,6 +132,75 @@ func (_c *TeamInputPort_CreateTeam_Call) RunAndReturn(run func(context.Context, 
 	return _c
 }
 
+// CreateTeamWithMembers provides a mock function with given fields: ctx, name, members
+func (_m *TeamInputPort) CreateTeamWithMembers(ctx context.Context, name string, members []*models.User) (*models.Team, []*models.User, error) {
+	ret := _m.Called(ctx, name, members)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateTeamWithMembers")
+	}
+
+	var r0 *models.Team
+	var r1 []*models.User
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, []*models.User) (*models.Team, []*models.User, error)); ok {
+		return rf(ctx, name, members)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, []*models.User) *models.Team); ok {
+		r0 = rf(ctx, name, members)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.Team)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, []*models.User) []*models.User); ok {
+		r1 = rf(ctx, name, members)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).([]*models.User)
+		}
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, string, []*models.User) error); ok {
+		r2 = rf(ctx, name, members)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// TeamInputPort_CreateTeamWithMembers_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateTeamWithMembers'
+type TeamInputPort_CreateTeamWithMembers_Call struct {
+	*mock.Call
+}
+
+// CreateTeamWithMembers is a helper method to define mock.On call
+//   - ctx context.Context
+//   - name string
+//   - members []*models.User
+func (_e *TeamInputPort_Expecter) CreateTeamWithMembers(ctx interface{}, name interface{}, members interface{}) *TeamInputPort_CreateTeamWithMembers_Call {
+	return &TeamInputPort_CreateTeamWithMembers_Call{Call: _e.mock.On("CreateTeamWithMembers", ctx, name, members)}
+}
+
+func (_c *TeamInputPort_CreateTeamWithMembers_Call) Run(run func(ctx context.Context, name string, members []*models.User)) *TeamInputPort_CreateTeamWithMembers_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].([]*models.User))
+	})
+	return _c
+}
+
+func (_c *TeamInputPort_CreateTeamWithMembers_Call) Return(_a0 *models.Team, _a1 []*models.User, _a2 error) *TeamInputPort_CreateTeamWithMembers_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *TeamInputPort_CreateTeamWithMembers_Call) RunAndReturn(run func(context.Context, string, []*models.User) (*models.Team, []*models.User, error)) *TeamInputPort_CreateTeamWithMembers_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetTeam provides a mock function with given fields: ctx, id
 func (_m *TeamInputPort) GetTeam(ctx context.Context, id uuid.UUID) (*models.Team, error) {
 	ret := _m.Called(ctx, id)

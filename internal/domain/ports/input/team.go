@@ -11,6 +11,7 @@ import (
 
 type TeamInputPort interface {
 	CreateTeam(ctx context.Context, name string) (*models.Team, error)
+	CreateTeamWithMembers(ctx context.Context, name string, members []*models.User) (*models.Team, []*models.User, error)
 	AddMember(ctx context.Context, teamID uuid.UUID, userID uuid.UUID) error
 	RemoveMember(ctx context.Context, teamID uuid.UUID, userID uuid.UUID) error
 	GetTeam(ctx context.Context, id uuid.UUID) (*models.Team, error)
