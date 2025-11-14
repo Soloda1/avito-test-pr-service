@@ -2,6 +2,7 @@ package reviewerselector
 
 import (
 	"math/rand"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -13,6 +14,7 @@ var _ services.ReviewerSelector = (*RandomReviewerSelector)(nil)
 
 type RandomReviewerSelector struct {
 	rnd *rand.Rand
+	mu  sync.Mutex
 }
 
 func NewRandomReviewerSelector() services.ReviewerSelector {
@@ -33,9 +35,11 @@ func (s *RandomReviewerSelector) Select(candidates []uuid.UUID, count int) []uui
 
 	shuffled := append([]uuid.UUID(nil), candidates...)
 	if len(shuffled) > 1 {
+		s.mu.Lock()
 		s.rnd.Shuffle(len(shuffled), func(i, j int) {
 			shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
 		})
+		s.mu.Unlock()
 	}
 
 	if count > len(shuffled) {
