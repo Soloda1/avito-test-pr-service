@@ -5,8 +5,8 @@ import (
 	"avito-test-pr-service/internal/domain/ports/input"
 	ports "avito-test-pr-service/internal/domain/ports/output"
 	uow "avito-test-pr-service/internal/domain/ports/output/uow"
+	"avito-test-pr-service/internal/utils"
 	"context"
-	"errors"
 
 	"github.com/google/uuid"
 )
@@ -21,21 +21,150 @@ func NewService(uow uow.UnitOfWork, log ports.Logger) input.TeamInputPort {
 }
 
 func (s *Service) CreateTeam(ctx context.Context, name string) (*models.Team, error) {
-	return nil, errors.New("not implemented")
+	if name == "" {
+		return nil, utils.ErrInvalidArgument
+	}
+
+	tx, err := s.uow.Begin(ctx)
+	if err != nil {
+		s.log.Error("CreateTeam begin tx failed", "err", err, "name", name)
+		return nil, err
+	}
+	var commit bool
+	defer func() {
+		if !commit {
+			_ = tx.Rollback(ctx)
+		}
+	}()
+
+	repo := tx.TeamRepository()
+	team := &models.Team{ID: uuid.New(), Name: name}
+	if err := repo.CreateTeam(ctx, team); err != nil {
+		s.log.Error("CreateTeam repo failed", "err", err, "name", name)
+		return nil, err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		s.log.Error("CreateTeam commit failed", "err", err, "team_id", team.ID)
+		return nil, err
+	}
+	commit = true
+	s.log.Info("CreateTeam success", "team_id", team.ID, "name", team.Name)
+	return team, nil
 }
 
 func (s *Service) AddMember(ctx context.Context, teamID uuid.UUID, userID uuid.UUID) error {
-	return errors.New("not implemented")
+	if teamID == uuid.Nil || userID == uuid.Nil {
+		return utils.ErrInvalidArgument
+	}
+
+	tx, err := s.uow.Begin(ctx)
+	if err != nil {
+		s.log.Error("AddMember begin tx failed", "err", err, "team_id", teamID, "user_id", userID)
+		return err
+	}
+	var commit bool
+	defer func() {
+		if !commit {
+			_ = tx.Rollback(ctx)
+		}
+	}()
+
+	teamrepo := tx.TeamRepository()
+	if _, err := teamrepo.GetTeamByID(ctx, teamID); err != nil {
+		return err
+	}
+
+	userrepo := tx.UserRepository()
+	if _, err := userrepo.GetUserByID(ctx, userID); err != nil {
+		return err
+	}
+
+	if err := teamrepo.AddMember(ctx, teamID, userID); err != nil {
+		return err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		s.log.Error("AddMember commit failed", "err", err, "team_id", teamID, "user_id", userID)
+		return err
+	}
+	commit = true
+	return nil
 }
 
 func (s *Service) RemoveMember(ctx context.Context, teamID uuid.UUID, userID uuid.UUID) error {
-	return errors.New("not implemented")
+	if teamID == uuid.Nil || userID == uuid.Nil {
+		return utils.ErrInvalidArgument
+	}
+
+	tx, err := s.uow.Begin(ctx)
+	if err != nil {
+		s.log.Error("RemoveMember begin tx failed", "err", err, "team_id", teamID, "user_id", userID)
+		return err
+	}
+	var commit bool
+	defer func() {
+		if !commit {
+			_ = tx.Rollback(ctx)
+		}
+	}()
+
+	teamrepo := tx.TeamRepository()
+
+	if _, err := teamrepo.GetTeamByID(ctx, teamID); err != nil {
+		return err
+	}
+
+	userrepo := tx.UserRepository()
+	if _, err := userrepo.GetUserByID(ctx, userID); err != nil {
+		return err
+	}
+
+	if err := teamrepo.RemoveMember(ctx, teamID, userID); err != nil {
+		return err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		s.log.Error("RemoveMember commit failed", "err", err, "team_id", teamID, "user_id", userID)
+		return err
+	}
+	commit = true
+	return nil
 }
 
 func (s *Service) GetTeam(ctx context.Context, id uuid.UUID) (*models.Team, error) {
-	return nil, errors.New("not implemented")
+	if id == uuid.Nil {
+		return nil, utils.ErrInvalidArgument
+	}
+
+	tx, err := s.uow.Begin(ctx)
+	if err != nil {
+		s.log.Error("GetTeam begin tx failed", "err", err, "team_id", id)
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	repo := tx.TeamRepository()
+	team, err := repo.GetTeamByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	return team, nil
 }
 
 func (s *Service) ListTeams(ctx context.Context) ([]*models.Team, error) {
-	return nil, errors.New("not implemented")
+	tx, err := s.uow.Begin(ctx)
+	if err != nil {
+		s.log.Error("ListTeams begin tx failed", "err", err)
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	repo := tx.TeamRepository()
+	res, err := repo.ListTeams(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
 }
