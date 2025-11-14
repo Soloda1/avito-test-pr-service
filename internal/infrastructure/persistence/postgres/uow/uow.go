@@ -12,7 +12,6 @@ import (
 	user_repo "avito-test-pr-service/internal/infrastructure/persistence/postgres/user"
 	"context"
 	"errors"
-	"fmt"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -31,7 +30,7 @@ func (puow *PostgresUnitOfWork) Begin(ctx context.Context) (uow.Transaction, err
 	tx, err := puow.pool.Begin(ctx)
 	if err != nil {
 		puow.log.Error("transaction begin failed", "err", err)
-		return nil, fmt.Errorf("error beginning transaction: %w", err)
+		return nil, err
 	}
 	return &PostgresTransaction{tx: tx, log: puow.log}, nil
 }
