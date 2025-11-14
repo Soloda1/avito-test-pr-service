@@ -11,6 +11,7 @@ import (
 	team_repo "avito-test-pr-service/internal/infrastructure/persistence/postgres/team"
 	user_repo "avito-test-pr-service/internal/infrastructure/persistence/postgres/user"
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
@@ -29,6 +30,7 @@ func NewPostgresUOW(pool *pgxpool.Pool, log ports.Logger) uow.UnitOfWork {
 func (puow *PostgresUnitOfWork) Begin(ctx context.Context) (uow.Transaction, error) {
 	tx, err := puow.pool.Begin(ctx)
 	if err != nil {
+		puow.log.Error("transaction begin failed", "err", err)
 		return nil, fmt.Errorf("error beginning transaction: %w", err)
 	}
 	return &PostgresTransaction{tx: tx, log: puow.log}, nil
@@ -40,11 +42,19 @@ type PostgresTransaction struct {
 }
 
 func (t *PostgresTransaction) Commit(ctx context.Context) error {
-	return t.tx.Commit(ctx)
+	if err := t.tx.Commit(ctx); err != nil {
+		t.log.Error("transaction commit failed", "err", err)
+		return err
+	}
+	return nil
 }
 
 func (t *PostgresTransaction) Rollback(ctx context.Context) error {
-	return t.tx.Rollback(ctx)
+	if err := t.tx.Rollback(ctx); err != nil && !errors.Is(err, pgx.ErrTxClosed) {
+		t.log.Error("transaction rollback failed", "err", err)
+		return err
+	}
+	return nil
 }
 
 func (t *PostgresTransaction) UserRepository() user_port.UserRepository {
