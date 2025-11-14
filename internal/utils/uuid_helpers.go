@@ -4,16 +4,17 @@ import "github.com/google/uuid"
 
 // FilterUUIDs фильтрует список идентификаторов, исключая элементы,
 // содержащиеся во множестве exclude. Порядок оставшихся элементов сохраняется.
+// Всегда возвращает непустой (ненил) срез: если нет результатов, то []uuid.UUID{}.
 //
 // Параметры:
 //   - candidates: исходный срез UUID-кандидатов
 //   - exclude: множество UUID для исключения (ключи map — это исключаемые значения)
 //
 // Возвращает:
-//   - новый срез UUID без исключённых значений; если входной список пуст — nil
+//   - новый срез UUID без исключённых значений (может быть пустой, но не nil)
 func FilterUUIDs(candidates []uuid.UUID, exclude map[uuid.UUID]struct{}) []uuid.UUID {
 	if len(candidates) == 0 {
-		return nil
+		return []uuid.UUID{}
 	}
 	out := make([]uuid.UUID, 0, len(candidates))
 	for _, id := range candidates {
@@ -21,6 +22,9 @@ func FilterUUIDs(candidates []uuid.UUID, exclude map[uuid.UUID]struct{}) []uuid.
 			continue
 		}
 		out = append(out, id)
+	}
+	if len(out) == 0 {
+		return []uuid.UUID{}
 	}
 	return out
 }
