@@ -18,4 +18,5 @@ var (
 	ErrReviewerAlreadyAssigned = errors.New("reviewer already assigned")
 	ErrReviewerNotAssigned     = errors.New("reviewer not assigned")
 	ErrInvalidStatus           = errors.New("invalid status")
+	ErrNoReplacementCandidates = errors.New("no replacement candidates")
 )
