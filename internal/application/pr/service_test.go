@@ -145,9 +145,9 @@ func TestPRService_ReassignReviewer(t *testing.T) {
 			setup: func(uow *mocks.UnitOfWork, tx *mocks.Transaction, userRepo *mocks.UserRepository, prRepo *mocks.PRRepository, sel *mocks.ReviewerSelector) {
 				uow.EXPECT().Begin(ctx).Return(tx, nil)
 				tx.EXPECT().PRRepository().Return(prRepo)
-				tx.EXPECT().UserRepository().Return(userRepo)
 				prRepo.EXPECT().LockPRByID(ctx, prID).Return(&models.PullRequest{ID: prID, AuthorID: authorID, Status: models.PRStatusOPEN, ReviewerIDs: []uuid.UUID{oldID}}, nil)
-				userRepo.EXPECT().GetTeamIDByUserID(ctx, oldID).Return(teamID, nil)
+				tx.EXPECT().UserRepository().Return(userRepo)
+				userRepo.EXPECT().GetTeamIDByUserID(ctx, authorID).Return(teamID, nil)
 				userRepo.EXPECT().ListActiveMembersByTeamID(ctx, teamID).Return([]uuid.UUID{authorID, oldID, newID}, nil)
 				sel.EXPECT().Select(mock.MatchedBy(func(ids []uuid.UUID) bool { return len(ids) == 1 && ids[0] == newID }), 1).Return([]uuid.UUID{newID})
 				prRepo.EXPECT().RemoveReviewer(ctx, prID, oldID).Return(nil)
@@ -180,9 +180,9 @@ func TestPRService_ReassignReviewer(t *testing.T) {
 			setup: func(uow *mocks.UnitOfWork, tx *mocks.Transaction, userRepo *mocks.UserRepository, prRepo *mocks.PRRepository, sel *mocks.ReviewerSelector) {
 				uow.EXPECT().Begin(ctx).Return(tx, nil)
 				tx.EXPECT().PRRepository().Return(prRepo)
-				tx.EXPECT().UserRepository().Return(userRepo)
 				prRepo.EXPECT().LockPRByID(ctx, prID).Return(&models.PullRequest{ID: prID, AuthorID: authorID, Status: models.PRStatusOPEN, ReviewerIDs: []uuid.UUID{oldID}}, nil)
-				userRepo.EXPECT().GetTeamIDByUserID(ctx, oldID).Return(teamID, nil)
+				tx.EXPECT().UserRepository().Return(userRepo)
+				userRepo.EXPECT().GetTeamIDByUserID(ctx, authorID).Return(teamID, nil)
 				userRepo.EXPECT().ListActiveMembersByTeamID(ctx, teamID).Return([]uuid.UUID{authorID, oldID}, nil)
 				tx.EXPECT().Rollback(ctx).Return(nil)
 			},

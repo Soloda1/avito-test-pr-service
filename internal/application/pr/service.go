@@ -8,7 +8,6 @@ import (
 	"avito-test-pr-service/internal/domain/services"
 	"avito-test-pr-service/internal/utils"
 	"context"
-	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -50,9 +49,6 @@ func (s *Service) CreatePR(ctx context.Context, authorID uuid.UUID, title string
 
 	teamID, err := userRepo.GetTeamIDByUserID(ctx, authorID)
 	if err != nil {
-		if errors.Is(err, utils.ErrUserNoTeam) {
-			return nil, utils.ErrUserNoTeam
-		}
 		return nil, err
 	}
 
@@ -99,7 +95,6 @@ func (s *Service) ReassignReviewer(ctx context.Context, prID uuid.UUID, oldRevie
 		s.log.Error("Reassign begin tx failed", "err", err, "pr_id", prID)
 		return nil, err
 	}
-
 	var commit bool
 	defer func() {
 		if !commit {
@@ -108,7 +103,6 @@ func (s *Service) ReassignReviewer(ctx context.Context, prID uuid.UUID, oldRevie
 	}()
 
 	prRepo := tx.PRRepository()
-
 	pr, err := prRepo.LockPRByID(ctx, prID)
 	if err != nil {
 		return nil, err
@@ -116,31 +110,24 @@ func (s *Service) ReassignReviewer(ctx context.Context, prID uuid.UUID, oldRevie
 	if pr.Status == models.PRStatusMERGED {
 		return nil, utils.ErrAlreadyMerged
 	}
-
 	if !utils.ContainsUUID(pr.ReviewerIDs, oldReviewerID) {
 		return nil, utils.ErrReviewerNotAssigned
 	}
 
 	userRepo := tx.UserRepository()
-
-	teamID, err := userRepo.GetTeamIDByUserID(ctx, oldReviewerID)
+	teamID, err := userRepo.GetTeamIDByUserID(ctx, pr.AuthorID)
 	if err != nil {
-		if errors.Is(err, utils.ErrUserNoTeam) {
-			return nil, utils.ErrUserNoTeam
-		}
 		return nil, err
 	}
 	members, err := userRepo.ListActiveMembersByTeamID(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
-
 	ex := make(map[uuid.UUID]struct{}, len(pr.ReviewerIDs)+1)
 	ex[pr.AuthorID] = struct{}{}
 	for _, id := range pr.ReviewerIDs {
 		ex[id] = struct{}{}
 	}
-
 	pool := utils.FilterUUIDs(members, ex)
 	if len(pool) == 0 {
 		return nil, utils.ErrNoReplacementCandidates
@@ -150,21 +137,18 @@ func (s *Service) ReassignReviewer(ctx context.Context, prID uuid.UUID, oldRevie
 		return nil, utils.ErrNoReplacementCandidates
 	}
 	newReviewerID := picked[0]
-
 	if err := prRepo.RemoveReviewer(ctx, prID, oldReviewerID); err != nil {
 		return nil, err
 	}
 	if err := prRepo.AddReviewer(ctx, prID, newReviewerID); err != nil {
 		return nil, err
 	}
-
 	for i, id := range pr.ReviewerIDs {
 		if id == oldReviewerID {
 			pr.ReviewerIDs[i] = newReviewerID
 			break
 		}
 	}
-
 	if err := tx.Commit(ctx); err != nil {
 		s.log.Error("Reassign commit failed", "err", err, "pr_id", prID)
 		return nil, err
