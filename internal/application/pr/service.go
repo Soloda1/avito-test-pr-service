@@ -51,7 +51,7 @@ func (s *Service) CreatePR(ctx context.Context, authorID uuid.UUID, title string
 	teamID, err := userRepo.GetTeamIDByUserID(ctx, authorID)
 	if err != nil {
 		if errors.Is(err, utils.ErrUserNoTeam) {
-			return nil, utils.ErrTeamNotFound
+			return nil, utils.ErrUserNoTeam
 		}
 		return nil, err
 	}
@@ -64,9 +64,7 @@ func (s *Service) CreatePR(ctx context.Context, authorID uuid.UUID, title string
 	filtered := utils.FilterUUIDs(candidates, map[uuid.UUID]struct{}{authorID: {}})
 
 	selected := s.selector.Select(filtered, 2)
-	if len(selected) > 2 {
-		return nil, utils.ErrTooManyReviewers
-	}
+
 	selected = utils.UniqueUUIDs(selected)
 
 	prRepo := tx.PRRepository()
@@ -128,7 +126,7 @@ func (s *Service) ReassignReviewer(ctx context.Context, prID uuid.UUID, oldRevie
 	teamID, err := userRepo.GetTeamIDByUserID(ctx, oldReviewerID)
 	if err != nil {
 		if errors.Is(err, utils.ErrUserNoTeam) {
-			return nil, utils.ErrTeamNotFound
+			return nil, utils.ErrUserNoTeam
 		}
 		return nil, err
 	}

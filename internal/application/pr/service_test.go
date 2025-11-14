@@ -96,7 +96,7 @@ func TestPRService_CreatePR(t *testing.T) {
 				userRepo.EXPECT().GetTeamIDByUserID(ctx, authorID).Return(uuid.Nil, utils.ErrUserNoTeam)
 				tx.EXPECT().Rollback(ctx).Return(nil)
 			},
-			wantErr: utils.ErrTeamNotFound,
+			wantErr: utils.ErrUserNoTeam,
 		},
 	}
 
@@ -111,7 +111,6 @@ func TestPRService_CreatePR(t *testing.T) {
 			if tt.setup != nil {
 				tt.setup(mockUOW, mockTx, mockUserRepo, mockPRRepo, mockSel)
 			}
-			// route repo getters
 			mockTx.EXPECT().PRRepository().Maybe().Return(mockPRRepo)
 			mockTx.EXPECT().UserRepository().Maybe().Return(mockUserRepo)
 			svc := app.NewService(mockUOW, mockSel, log)
