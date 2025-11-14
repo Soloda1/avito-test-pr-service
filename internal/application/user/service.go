@@ -177,3 +177,38 @@ func (s *Service) GetUserTeamName(ctx context.Context, id uuid.UUID) (string, er
 	}
 	return team.Name, nil
 }
+
+func (s *Service) UpdateUserName(ctx context.Context, id uuid.UUID, name string) error {
+	if id == uuid.Nil || name == "" {
+		s.log.Error("UpdateUserName invalid argument", "err", utils.ErrInvalidArgument, "user_id", id, "name", name)
+		return utils.ErrInvalidArgument
+	}
+	tx, err := s.uow.Begin(ctx)
+	if err != nil {
+		s.log.Error("UpdateUserName begin tx failed", "err", err, "user_id", id)
+		return err
+	}
+	var commit bool
+	defer func() {
+		if !commit {
+			_ = tx.Rollback(ctx)
+		}
+	}()
+
+	repo := tx.UserRepository()
+	if _, err := repo.GetUserByID(ctx, id); err != nil {
+		s.log.Error("UpdateUserName get user failed", "err", err, "user_id", id)
+		return err
+	}
+	if err := repo.UpdateUserName(ctx, id, name); err != nil {
+		s.log.Error("UpdateUserName repo failed", "err", err, "user_id", id)
+		return err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		s.log.Error("UpdateUserName commit failed", "err", err, "user_id", id)
+		return err
+	}
+	commit = true
+	s.log.Info("UpdateUserName success", "user_id", id, "name", name)
+	return nil
+}

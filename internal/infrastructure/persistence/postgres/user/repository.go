@@ -185,3 +185,27 @@ func (r *UserRepository) ListActiveMembersByTeamID(ctx context.Context, teamID u
 	}
 	return ids, nil
 }
+
+func (r *UserRepository) UpdateUserName(ctx context.Context, id uuid.UUID, name string) error {
+	const q = `
+		UPDATE users
+		SET name = @name,
+			updated_at = now()
+		WHERE id = @id
+		RETURNING id;
+	`
+	row := r.querier.QueryRow(ctx, q, pgx.NamedArgs{"id": id, "name": name})
+	var out uuid.UUID
+	if err := row.Scan(&out); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return utils.ErrUserNotFound
+		}
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			r.log.Error("UpdateUserName pg error", "code", pgErr.Code, "constraint", pgErr.ConstraintName, "user_id", id, "err", pgErr)
+		}
+		r.log.Error("UpdateUserName failed", "user_id", id, "err", err)
+		return err
+	}
+	return nil
+}

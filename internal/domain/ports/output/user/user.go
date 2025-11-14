@@ -14,7 +14,7 @@ type UserRepository interface {
 	GetUserByID(ctx context.Context, id uuid.UUID) (*models.User, error)
 	UpdateUserActive(ctx context.Context, id uuid.UUID, isActive bool) error
 	ListUsers(ctx context.Context) ([]*models.User, error)
-
+	UpdateUserName(ctx context.Context, id uuid.UUID, name string) error
 	GetTeamIDByUserID(ctx context.Context, userID uuid.UUID) (uuid.UUID, error)
 	ListActiveMembersByTeamID(ctx context.Context, teamID uuid.UUID) ([]uuid.UUID, error)
 }
