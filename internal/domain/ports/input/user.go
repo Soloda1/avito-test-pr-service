@@ -14,4 +14,5 @@ type UserInputPort interface {
 	UpdateUserActive(ctx context.Context, id uuid.UUID, isActive bool) error
 	GetUser(ctx context.Context, id uuid.UUID) (*models.User, error)
 	ListUsers(ctx context.Context) ([]*models.User, error)
+	GetUserTeamName(ctx context.Context, id uuid.UUID) (string, error)
 }

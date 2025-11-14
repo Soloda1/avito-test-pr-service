@@ -7,6 +7,7 @@ import (
 	uow "avito-test-pr-service/internal/domain/ports/output/uow"
 	"avito-test-pr-service/internal/utils"
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
 )
@@ -143,4 +144,36 @@ func (s *Service) ListUsers(ctx context.Context) ([]*models.User, error) {
 	}
 	s.log.Info("ListUsers success", "count", len(users))
 	return users, nil
+}
+
+func (s *Service) GetUserTeamName(ctx context.Context, id uuid.UUID) (string, error) {
+	if id == uuid.Nil {
+		s.log.Error("GetUserTeamName invalid argument", "err", utils.ErrInvalidArgument, "user_id", id)
+		return "", utils.ErrInvalidArgument
+	}
+
+	tx, err := s.uow.Begin(ctx)
+	if err != nil {
+		s.log.Error("GetUserTeamName begin tx failed", "err", err, "user_id", id)
+		return "", err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	userRepo := tx.UserRepository()
+	teamID, err := userRepo.GetTeamIDByUserID(ctx, id)
+	if err != nil {
+		if errors.Is(err, utils.ErrUserNoTeam) {
+			return "", nil
+		}
+		s.log.Error("GetUserTeamName get team id failed", "err", err, "user_id", id)
+		return "", err
+	}
+
+	teamRepo := tx.TeamRepository()
+	team, err := teamRepo.GetTeamByID(ctx, teamID)
+	if err != nil {
+		s.log.Error("GetUserTeamName get team failed", "err", err, "user_id", id, "team_id", teamID)
+		return "", err
+	}
+	return team.Name, nil
 }
