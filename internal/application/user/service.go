@@ -208,3 +208,25 @@ func (s *Service) UpdateUserName(ctx context.Context, id uuid.UUID, name string)
 	s.log.Info("UpdateUserName success", "user_id", id, "name", name)
 	return nil
 }
+
+func (s *Service) ListMembersByTeamID(ctx context.Context, teamID uuid.UUID) ([]*models.User, error) {
+	if teamID == uuid.Nil {
+		s.log.Error("ListMembersByTeamID invalid argument", "err", utils.ErrInvalidArgument, "team_id", teamID)
+		return nil, utils.ErrInvalidArgument
+	}
+	tx, err := s.uow.Begin(ctx)
+	if err != nil {
+		s.log.Error("ListMembersByTeamID begin tx failed", "err", err, "team_id", teamID)
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	repo := tx.UserRepository()
+	users, err := repo.ListMembersByTeamID(ctx, teamID)
+	if err != nil {
+		s.log.Error("ListMembersByTeamID repo failed", "err", err, "team_id", teamID)
+		return nil, err
+	}
+	s.log.Info("ListMembersByTeamID success", "team_id", teamID, "count", len(users))
+	return users, nil
+}

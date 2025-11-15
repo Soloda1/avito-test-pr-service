@@ -16,4 +16,5 @@ type UserInputPort interface {
 	GetUser(ctx context.Context, id uuid.UUID) (*models.User, error)
 	ListUsers(ctx context.Context) ([]*models.User, error)
 	GetUserTeamName(ctx context.Context, id uuid.UUID) (string, error)
+	ListMembersByTeamID(ctx context.Context, teamID uuid.UUID) ([]*models.User, error)
 }
