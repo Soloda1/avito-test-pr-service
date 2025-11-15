@@ -17,7 +17,7 @@ import (
 
 func TestPRService_CreatePR(t *testing.T) {
 	ctx := context.Background()
-	prID := uuid.New()
+	prID := uuid.New().String()
 	authorID := uuid.New()
 	teamID := uuid.New()
 	// candidates
@@ -132,7 +132,7 @@ func TestPRService_CreatePR(t *testing.T) {
 
 func TestPRService_ReassignReviewer(t *testing.T) {
 	ctx := context.Background()
-	prID := uuid.New()
+	prID := uuid.New().String()
 	oldID := uuid.New()
 	newID := uuid.New()
 	authorID := uuid.New()
@@ -222,7 +222,7 @@ func TestPRService_ReassignReviewer(t *testing.T) {
 
 func TestPRService_MergePR(t *testing.T) {
 	ctx := context.Background()
-	prID := uuid.New()
+	prID := uuid.New().String()
 	tests := []struct {
 		name    string
 		setup   func(uow *mocks.UnitOfWork, tx *mocks.Transaction, prRepo *mocks.PRRepository)
@@ -274,7 +274,7 @@ func TestPRService_MergePR(t *testing.T) {
 
 func TestPRService_GetAndList(t *testing.T) {
 	ctx := context.Background()
-	prID := uuid.New()
+	prID := uuid.New().String()
 	reviewer := uuid.New()
 	tests := []struct {
 		name      string
