@@ -9,7 +9,6 @@ import (
 	"avito-test-pr-service/internal/utils"
 	"context"
 	"errors"
-	"fmt"
 
 	"github.com/google/uuid"
 )
@@ -188,12 +187,12 @@ func (s *Service) CreateTeamWithMembers(ctx context.Context, name string, member
 	}
 	for idx, m := range members {
 		if m == nil {
-			s.log.Error("CreateTeamWithMembers nil member", "index", idx)
-			return nil, nil, fmt.Errorf("member[%d] is nil: %w", idx, utils.ErrInvalidArgument)
+			s.log.Error("CreateTeamWithMembers invalid member (nil)", "index", idx)
+			return nil, nil, utils.ErrInvalidArgument
 		}
 		if m.ID == "" {
-			s.log.Error("CreateTeamWithMembers empty member id", "index", idx)
-			return nil, nil, fmt.Errorf("member[%d] has empty id: %w", idx, utils.ErrInvalidArgument)
+			s.log.Error("CreateTeamWithMembers invalid member id (empty)", "index", idx)
+			return nil, nil, utils.ErrInvalidArgument
 		}
 	}
 	tx, err := s.uow.Begin(ctx)
