@@ -8,14 +8,13 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 )
 
 type AddTeamMember struct {
-	UserID   string `json:"user_id" validate:"required"`
+	UserID   string `json:"user_id"`
 	Username string `json:"username" validate:"required"`
-	IsActive bool   `json:"is_active" validate:"required"`
+	IsActive bool   `json:"is_active" `
 }
 
 type AddTeamRequest struct {
@@ -36,8 +35,7 @@ func (h *TeamHandler) AddTeam(w http.ResponseWriter, r *http.Request) {
 		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPStatusToCode(http.StatusBadRequest), "invalid json body")
 		return
 	}
-	validate := validator.New()
-	if err := validate.Struct(req); err != nil {
+	if err := utils.Validate(req); err != nil {
 		_ = utils.WriteError(w, http.StatusBadRequest, "BAD_REQUEST", "validation failed")
 		return
 	}
