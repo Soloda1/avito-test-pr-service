@@ -30,7 +30,7 @@ type AddTeamResponse struct {
 func (h *TeamHandler) AddTeam(w http.ResponseWriter, r *http.Request) {
 	var req AddTeamRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPCodeConverter(http.StatusBadRequest), err.Error())
+		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPCodeConverter(http.StatusBadRequest), utils.ErrInvalidJSON.Error())
 		return
 	}
 	if err := utils.Validate(req); err != nil {
@@ -48,15 +48,15 @@ func (h *TeamHandler) AddTeam(w http.ResponseWriter, r *http.Request) {
 	team, users, err := h.teamService.CreateTeamWithMembers(r.Context(), req.TeamName, usersIn)
 	if err != nil {
 		switch {
-		case errors.Is(err, utils.ErrAlreadyExists):
-			_ = utils.WriteError(w, http.StatusConflict, utils.HTTPCodeConverter(http.StatusConflict), err.Error())
+		case errors.Is(err, utils.ErrAlreadyExists), errors.Is(err, utils.ErrTeamExists):
+			_ = utils.WriteError(w, http.StatusConflict, utils.HTTPCodeConverter(http.StatusConflict, utils.ErrTeamExists), err.Error())
 			return
 		case errors.Is(err, utils.ErrInvalidArgument):
 			_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPCodeConverter(http.StatusBadRequest), err.Error())
 			return
 		default:
 			h.log.Error("AddTeam service failed", slog.String("team_name", req.TeamName), slog.Any("err", err))
-			_ = utils.WriteError(w, http.StatusInternalServerError, utils.HTTPCodeConverter(http.StatusInternalServerError), err.Error())
+			_ = utils.WriteError(w, http.StatusInternalServerError, utils.HTTPCodeConverter(http.StatusInternalServerError), utils.ErrInternal.Error())
 			return
 		}
 	}

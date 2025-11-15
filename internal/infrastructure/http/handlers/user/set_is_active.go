@@ -25,11 +25,11 @@ type SetIsActiveResponse struct {
 func (h *UserHandler) SetIsActive(w http.ResponseWriter, r *http.Request) {
 	var req SetIsActiveRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPCodeConverter(http.StatusBadRequest), "invalid json body")
+		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPCodeConverter(http.StatusBadRequest), utils.ErrInvalidJSON.Error())
 		return
 	}
 	if err := utils.Validate(req); err != nil {
-		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPCodeConverter(http.StatusBadRequest), utils.ErrValidationFailed.Error())
+		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPCodeConverter(http.StatusBadRequest), err.Error())
 		return
 	}
 	userID := req.UserID
