@@ -59,7 +59,6 @@ func (s *Service) AddMember(ctx context.Context, teamID uuid.UUID, userID uuid.U
 	if teamID == uuid.Nil || userID == uuid.Nil {
 		return utils.ErrInvalidArgument
 	}
-	// конвертируем userID в string
 	userIDStr := userID.String()
 
 	tx, err := s.uow.Begin(ctx)
@@ -234,7 +233,6 @@ func (s *Service) CreateTeamWithMembers(ctx context.Context, name string, member
 }
 
 func (s *Service) processTeamMember(ctx context.Context, userRepo user_port.UserRepository, member *models.User) (*models.User, error) {
-	// Новый пользователь: ID должен быть задан внешне (string). Если пустой -> ошибка.
 	if member.ID == "" {
 		return nil, utils.ErrInvalidArgument
 	}
@@ -242,10 +240,8 @@ func (s *Service) processTeamMember(ctx context.Context, userRepo user_port.User
 	existingUser, err := userRepo.GetUserByID(ctx, member.ID)
 	if err != nil {
 		if errors.Is(err, utils.ErrUserNotFound) {
-			// Пытаемся создать
 			if err := userRepo.CreateUser(ctx, member); err != nil {
 				if errors.Is(err, utils.ErrUserExists) {
-					// Конкурентное создание: читаем
 					if existing, gerr := userRepo.GetUserByID(ctx, member.ID); gerr == nil {
 						return existing, nil
 					}
