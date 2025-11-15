@@ -277,3 +277,23 @@ func (s *Service) updateExistingUser(ctx context.Context, userRepo user_port.Use
 
 	return updatedUser, nil
 }
+
+func (s *Service) GetTeamByName(ctx context.Context, name string) (*models.Team, error) {
+	if name == "" {
+		return nil, utils.ErrInvalidArgument
+	}
+	tx, err := s.uow.Begin(ctx)
+	if err != nil {
+		s.log.Error("GetTeamByName begin tx failed", "err", err, "team_name", name)
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	repo := tx.TeamRepository()
+	team, err := repo.GetTeamByName(ctx, name)
+	if err != nil {
+		s.log.Error("GetTeamByName repo failed", "err", err, "team_name", name)
+		return nil, err
+	}
+	return team, nil
+}

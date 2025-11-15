@@ -465,3 +465,95 @@ func TestTeamService_CreateTeamWithMembers(t *testing.T) {
 		})
 	}
 }
+
+func TestTeamService_GetTeamByName(t *testing.T) {
+	ctx := context.Background()
+	teamName := "core"
+	team := &models.Team{ID: uuid.New(), Name: teamName}
+
+	tests := []struct {
+		name    string
+		argName string
+		setup   func(uow *mocks.UnitOfWork, tx *mocks.Transaction, trepo *mocks.TeamRepository)
+		wantErr error
+	}{
+		{
+			name:    "happy",
+			argName: teamName,
+			setup: func(uow *mocks.UnitOfWork, tx *mocks.Transaction, trepo *mocks.TeamRepository) {
+				uow.EXPECT().Begin(ctx).Return(tx, nil)
+				tx.EXPECT().TeamRepository().Return(trepo)
+				trepo.EXPECT().GetTeamByName(ctx, teamName).Return(team, nil)
+				tx.EXPECT().Rollback(ctx).Return(nil)
+			},
+		},
+		{
+			name:    "invalid arg",
+			argName: "",
+			setup:   func(uow *mocks.UnitOfWork, tx *mocks.Transaction, trepo *mocks.TeamRepository) {},
+			wantErr: utils.ErrInvalidArgument,
+		},
+		{
+			name:    "begin fail",
+			argName: teamName,
+			setup: func(uow *mocks.UnitOfWork, tx *mocks.Transaction, trepo *mocks.TeamRepository) {
+				uow.EXPECT().Begin(ctx).Return(nil, errors.New("begin fail"))
+			},
+			wantErr: errors.New("begin fail"),
+		},
+		{
+			name:    "not found",
+			argName: teamName,
+			setup: func(uow *mocks.UnitOfWork, tx *mocks.Transaction, trepo *mocks.TeamRepository) {
+				uow.EXPECT().Begin(ctx).Return(tx, nil)
+				tx.EXPECT().TeamRepository().Return(trepo)
+				trepo.EXPECT().GetTeamByName(ctx, teamName).Return(nil, utils.ErrTeamNotFound)
+				tx.EXPECT().Rollback(ctx).Return(nil)
+			},
+			wantErr: utils.ErrTeamNotFound,
+		},
+		{
+			name:    "db error",
+			argName: teamName,
+			setup: func(uow *mocks.UnitOfWork, tx *mocks.Transaction, trepo *mocks.TeamRepository) {
+				uow.EXPECT().Begin(ctx).Return(tx, nil)
+				tx.EXPECT().TeamRepository().Return(trepo)
+				trepo.EXPECT().GetTeamByName(ctx, teamName).Return(nil, errors.New("db error"))
+				tx.EXPECT().Rollback(ctx).Return(nil)
+			},
+			wantErr: errors.New("db error"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockUOW := mocks.NewUnitOfWork(t)
+			mockTx := mocks.NewTransaction(t)
+			mockTeamRepo := mocks.NewTeamRepository(t)
+			log := logger.New("dev")
+
+			if tt.setup != nil {
+				tt.setup(mockUOW, mockTx, mockTeamRepo)
+			}
+
+			svc := app.NewService(mockUOW, log)
+			res, err := svc.GetTeamByName(ctx, tt.argName)
+
+			if tt.wantErr != nil {
+				require.Error(t, err)
+				switch {
+				case errors.Is(tt.wantErr, utils.ErrInvalidArgument), errors.Is(tt.wantErr, utils.ErrTeamNotFound):
+					require.ErrorIs(t, err, tt.wantErr)
+				default:
+					require.EqualError(t, err, tt.wantErr.Error())
+				}
+				require.Nil(t, res)
+				return
+			}
+
+			require.NoError(t, err)
+			require.NotNil(t, res)
+			require.Equal(t, teamName, res.Name)
+		})
+	}
+}
