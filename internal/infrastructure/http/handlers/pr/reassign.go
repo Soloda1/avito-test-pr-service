@@ -32,10 +32,7 @@ func (h *PRHandler) Reassign(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	prID := req.PullRequestID
-	if prID == "" {
-		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPStatusToCode(http.StatusBadRequest), "pull_request_id is required")
-		return
-	}
+
 	oldID, err := uuid.Parse(req.OldUserID)
 	if err != nil {
 		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPStatusToCode(http.StatusBadRequest), "invalid old_user_id")
