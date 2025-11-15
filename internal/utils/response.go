@@ -2,6 +2,7 @@ package utils
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 )
 
@@ -14,7 +15,18 @@ type ErrorResponse struct {
 	Error ErrorDetails `json:"error"`
 }
 
-func HTTPStatusToCode(status int) string {
+func HTTPCodeConverter(status int, errs ...error) string {
+	if status == http.StatusConflict && len(errs) > 0 && errs[0] != nil {
+		err := errs[0]
+		switch {
+		case errors.Is(err, ErrAlreadyMerged):
+			return "PR_MERGED"
+		case errors.Is(err, ErrReviewerNotAssigned):
+			return "NOT_ASSIGNED"
+		case errors.Is(err, ErrNoReplacementCandidates):
+			return "NO_CANDIDATE"
+		}
+	}
 	switch status {
 	case http.StatusNotFound:
 		return "NOT_FOUND"
