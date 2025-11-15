@@ -4,53 +4,23 @@ import (
 	rand "math/rand/v2"
 	"testing"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
 
 func TestRandomReviewerSelector_Select(t *testing.T) {
-	candidates := []uuid.UUID{
-		uuid.MustParse("11111111-1111-1111-1111-111111111111"),
-		uuid.MustParse("22222222-2222-2222-2222-222222222222"),
-		uuid.MustParse("33333333-3333-3333-3333-333333333333"),
-		uuid.MustParse("44444444-4444-4444-4444-444444444444"),
-	}
+	candidates := []string{"id-1", "id-2", "id-3", "id-4"}
 
 	tests := []struct {
 		name       string
-		candidates []uuid.UUID
+		candidates []string
 		count      int
 		seed       uint64
 		expectLen  int
 	}{
-		{
-			name:       "select subset",
-			candidates: candidates,
-			count:      2,
-			seed:       1,
-			expectLen:  2,
-		},
-		{
-			name:       "count greater than candidates",
-			candidates: candidates[:2],
-			count:      5,
-			seed:       42,
-			expectLen:  2,
-		},
-		{
-			name:       "zero count returns nil",
-			candidates: candidates,
-			count:      0,
-			seed:       99,
-			expectLen:  0,
-		},
-		{
-			name:       "no candidates",
-			candidates: nil,
-			count:      2,
-			seed:       7,
-			expectLen:  0,
-		},
+		{"select subset", candidates, 2, 1, 2},
+		{"count greater than candidates", candidates[:2], 5, 42, 2},
+		{"zero count returns nil", candidates, 0, 99, 0},
+		{"no candidates", nil, 2, 7, 0},
 	}
 
 	for _, tt := range tests {
@@ -66,18 +36,22 @@ func TestRandomReviewerSelector_Select(t *testing.T) {
 				require.Nil(t, result)
 				return
 			}
-
 			require.Len(t, result, tt.expectLen)
-
-			seen := make(map[uuid.UUID]struct{}, len(result))
+			seen := make(map[string]struct{}, len(result))
 			for _, id := range result {
 				_, exists := seen[id]
 				require.False(t, exists, "duplicate reviewer returned")
 				seen[id] = struct{}{}
 			}
-
 			for id := range seen {
-				require.Contains(t, tt.candidates, id)
+				found := false
+				for _, c := range tt.candidates {
+					if c == id {
+						found = true
+						break
+					}
+				}
+				require.True(t, found, "selected id not in candidates")
 			}
 		})
 	}
@@ -85,6 +59,6 @@ func TestRandomReviewerSelector_Select(t *testing.T) {
 
 func TestNewRandomReviewerSelectorWithRand_NilFallback(t *testing.T) {
 	selector := NewRandomReviewerSelectorWithRand(nil)
-	result := selector.Select([]uuid.UUID{uuid.New()}, 1)
+	result := selector.Select([]string{"x"}, 1)
 	require.Len(t, result, 1)
 }

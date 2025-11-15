@@ -96,8 +96,8 @@ func TestTeamService_AddMember(t *testing.T) {
 				tx.EXPECT().TeamRepository().Return(trepo)
 				trepo.EXPECT().GetTeamByID(ctx, tid).Return(&models.Team{ID: tid, Name: "core"}, nil)
 				tx.EXPECT().UserRepository().Return(urepo)
-				urepo.EXPECT().GetUserByID(ctx, uid).Return(&models.User{ID: uid, Name: "u"}, nil)
-				trepo.EXPECT().AddMember(ctx, tid, uid).Return(nil)
+				urepo.EXPECT().GetUserByID(ctx, uid.String()).Return(&models.User{ID: uid.String(), Name: "u"}, nil)
+				trepo.EXPECT().AddMember(ctx, tid, uid.String()).Return(nil)
 				tx.EXPECT().Commit(ctx).Return(nil)
 			},
 		},
@@ -130,7 +130,7 @@ func TestTeamService_AddMember(t *testing.T) {
 				tx.EXPECT().TeamRepository().Return(trepo)
 				trepo.EXPECT().GetTeamByID(ctx, tid).Return(&models.Team{ID: tid, Name: "core"}, nil)
 				tx.EXPECT().UserRepository().Return(urepo)
-				urepo.EXPECT().GetUserByID(ctx, uid).Return(nil, utils.ErrUserNotFound)
+				urepo.EXPECT().GetUserByID(ctx, uid.String()).Return(nil, utils.ErrUserNotFound)
 				tx.EXPECT().Rollback(ctx).Return(nil)
 			},
 			wantErr: utils.ErrUserNotFound,
@@ -178,8 +178,8 @@ func TestTeamService_RemoveMember(t *testing.T) {
 				tx.EXPECT().TeamRepository().Return(trepo)
 				trepo.EXPECT().GetTeamByID(ctx, tid).Return(&models.Team{ID: tid, Name: "core"}, nil)
 				tx.EXPECT().UserRepository().Return(urepo)
-				urepo.EXPECT().GetUserByID(ctx, uid).Return(&models.User{ID: uid, Name: "u"}, nil)
-				trepo.EXPECT().RemoveMember(ctx, tid, uid).Return(nil)
+				urepo.EXPECT().GetUserByID(ctx, uid.String()).Return(&models.User{ID: uid.String(), Name: "u"}, nil)
+				trepo.EXPECT().RemoveMember(ctx, tid, uid.String()).Return(nil)
 				tx.EXPECT().Commit(ctx).Return(nil)
 			},
 		},
@@ -212,7 +212,7 @@ func TestTeamService_RemoveMember(t *testing.T) {
 				tx.EXPECT().TeamRepository().Return(trepo)
 				trepo.EXPECT().GetTeamByID(ctx, tid).Return(&models.Team{ID: tid, Name: "core"}, nil)
 				tx.EXPECT().UserRepository().Return(urepo)
-				urepo.EXPECT().GetUserByID(ctx, uid).Return(nil, utils.ErrUserNotFound)
+				urepo.EXPECT().GetUserByID(ctx, uid.String()).Return(nil, utils.ErrUserNotFound)
 				tx.EXPECT().Rollback(ctx).Return(nil)
 			},
 			wantErr: utils.ErrUserNotFound,
@@ -293,7 +293,7 @@ func TestTeamService_GetTeam_ListTeams(t *testing.T) {
 func TestTeamService_CreateTeamWithMembers(t *testing.T) {
 	ctx := context.Background()
 	teamID := uuid.New()
-	existingUserID := uuid.New()
+	existingUserID := "user-existing"
 
 	tests := []struct {
 		name      string
@@ -305,18 +305,17 @@ func TestTeamService_CreateTeamWithMembers(t *testing.T) {
 		{
 			name: "happy_mixed_new_and_existing_and_idempotent_add",
 			members: []*models.User{
-				{ID: uuid.Nil, Name: "alice", IsActive: true},
+				{ID: "user-alice", Name: "alice", IsActive: true},
 				{ID: existingUserID, Name: "bob-new", IsActive: true},
 			},
 			mockSetup: func(uow *mocks.UnitOfWork, tx *mocks.Transaction, trepo *mocks.TeamRepository, urepo *mocks.UserRepository) {
 				uow.EXPECT().Begin(ctx).Return(tx, nil)
 				tx.EXPECT().TeamRepository().Return(trepo)
-				trepo.EXPECT().CreateTeam(ctx, mock.MatchedBy(func(tm *models.Team) bool { return tm != nil && tm.Name == "backend" })).Run(func(_ context.Context, tm *models.Team) {
-					tm.ID = teamID
-				}).Return(nil)
+				trepo.EXPECT().CreateTeam(ctx, mock.MatchedBy(func(tm *models.Team) bool { return tm != nil && tm.Name == "backend" })).Run(func(_ context.Context, tm *models.Team) { tm.ID = teamID }).Return(nil)
 				tx.EXPECT().UserRepository().Return(urepo)
-				urepo.EXPECT().CreateUser(ctx, mock.MatchedBy(func(u *models.User) bool { return u.Name == "alice" && u.IsActive })).Return(nil)
-				trepo.EXPECT().AddMember(ctx, teamID, mock.Anything).Return(nil)
+				urepo.EXPECT().GetUserByID(ctx, "user-alice").Return(nil, utils.ErrUserNotFound)
+				urepo.EXPECT().CreateUser(ctx, mock.MatchedBy(func(u *models.User) bool { return u.ID == "user-alice" && u.Name == "alice" })).Return(nil)
+				trepo.EXPECT().AddMember(ctx, teamID, "user-alice").Return(nil)
 				urepo.EXPECT().GetUserByID(ctx, existingUserID).Return(&models.User{ID: existingUserID, Name: "bob", IsActive: false}, nil)
 				urepo.EXPECT().UpdateUserActive(ctx, existingUserID, true).Return(nil)
 				urepo.EXPECT().UpdateUserName(ctx, existingUserID, "bob-new").Return(nil)
@@ -351,13 +350,14 @@ func TestTeamService_CreateTeamWithMembers(t *testing.T) {
 		},
 		{
 			name:    "create_user_fail",
-			members: []*models.User{{ID: uuid.Nil, Name: "alice", IsActive: true}},
+			members: []*models.User{{ID: "user-alice", Name: "alice", IsActive: true}},
 			mockSetup: func(uow *mocks.UnitOfWork, tx *mocks.Transaction, trepo *mocks.TeamRepository, urepo *mocks.UserRepository) {
 				uow.EXPECT().Begin(ctx).Return(tx, nil)
 				tx.EXPECT().TeamRepository().Return(trepo)
 				trepo.EXPECT().CreateTeam(ctx, mock.AnythingOfType("*models.Team")).Return(nil)
 				tx.EXPECT().UserRepository().Return(urepo)
-				urepo.EXPECT().CreateUser(ctx, mock.MatchedBy(func(u *models.User) bool { return u.Name == "alice" })).Return(errors.New("insert fail"))
+				urepo.EXPECT().GetUserByID(ctx, "user-alice").Return(nil, utils.ErrUserNotFound) // added
+				urepo.EXPECT().CreateUser(ctx, mock.MatchedBy(func(u *models.User) bool { return u.ID == "user-alice" && u.Name == "alice" })).Return(errors.New("insert fail"))
 				tx.EXPECT().Rollback(ctx).Return(nil)
 			},
 			wantErr: errors.New("insert fail"),
@@ -405,7 +405,7 @@ func TestTeamService_CreateTeamWithMembers(t *testing.T) {
 		},
 		{
 			name:    "add_member_fail_non_idempotent",
-			members: []*models.User{{ID: uuid.Nil, Name: "alice", IsActive: true}},
+			members: []*models.User{{ID: "user-alice", Name: "alice", IsActive: true}},
 			mockSetup: func(uow *mocks.UnitOfWork, tx *mocks.Transaction, trepo *mocks.TeamRepository, urepo *mocks.UserRepository) {
 				uow.EXPECT().Begin(ctx).Return(tx, nil)
 				tx.EXPECT().TeamRepository().Return(trepo)
@@ -413,20 +413,22 @@ func TestTeamService_CreateTeamWithMembers(t *testing.T) {
 					tm.ID = teamID
 				}).Return(nil)
 				tx.EXPECT().UserRepository().Return(urepo)
-				urepo.EXPECT().CreateUser(ctx, mock.MatchedBy(func(u *models.User) bool { return u.Name == "alice" })).Return(nil)
-				trepo.EXPECT().AddMember(ctx, teamID, mock.Anything).Return(errors.New("rel fail"))
+				urepo.EXPECT().GetUserByID(ctx, "user-alice").Return(nil, utils.ErrUserNotFound) // added
+				urepo.EXPECT().CreateUser(ctx, mock.MatchedBy(func(u *models.User) bool { return u.ID == "user-alice" && u.Name == "alice" })).Return(nil)
+				trepo.EXPECT().AddMember(ctx, teamID, "user-alice").Return(errors.New("rel fail"))
 				tx.EXPECT().Rollback(ctx).Return(nil)
 			},
 			wantErr: errors.New("rel fail"),
 		},
 		{
 			name:    "commit_fail",
-			members: []*models.User{{ID: uuid.Nil, Name: "alice", IsActive: true}},
+			members: []*models.User{{ID: "user-alice", Name: "alice", IsActive: true}},
 			mockSetup: func(uow *mocks.UnitOfWork, tx *mocks.Transaction, trepo *mocks.TeamRepository, urepo *mocks.UserRepository) {
 				uow.EXPECT().Begin(ctx).Return(tx, nil)
 				tx.EXPECT().TeamRepository().Return(trepo)
 				trepo.EXPECT().CreateTeam(ctx, mock.AnythingOfType("*models.Team")).Return(nil)
 				tx.EXPECT().UserRepository().Return(urepo)
+				urepo.EXPECT().GetUserByID(ctx, "user-alice").Return(nil, utils.ErrUserNotFound) // added
 				urepo.EXPECT().CreateUser(ctx, mock.AnythingOfType("*models.User")).Return(nil)
 				trepo.EXPECT().AddMember(ctx, mock.Anything, mock.Anything).Return(nil)
 				tx.EXPECT().Commit(ctx).Return(errors.New("commit fail"))

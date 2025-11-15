@@ -17,11 +17,10 @@ import (
 
 func TestPRService_CreatePR(t *testing.T) {
 	ctx := context.Background()
-	prID := uuid.New().String()
-	authorID := uuid.New()
+	prID := "pr-1"
+	authorID := "user-author"
 	teamID := uuid.New()
-	// candidates
-	c1, c2, c3 := uuid.New(), uuid.New(), uuid.New()
+	c1, c2, c3 := "user-r1", "user-r2", "user-r3"
 
 	tests := []struct {
 		name    string
@@ -37,11 +36,11 @@ func TestPRService_CreatePR(t *testing.T) {
 				tx.EXPECT().UserRepository().Return(userRepo)
 				userRepo.EXPECT().GetUserByID(ctx, authorID).Return(&models.User{ID: authorID, Name: "a"}, nil)
 				userRepo.EXPECT().GetTeamIDByUserID(ctx, authorID).Return(teamID, nil)
-				userRepo.EXPECT().ListActiveMembersByTeamID(ctx, teamID).Return([]uuid.UUID{authorID, c1, c2, c3}, nil)
+				userRepo.EXPECT().ListActiveMembersByTeamID(ctx, teamID).Return([]string{authorID, c1, c2, c3}, nil)
 				tx.EXPECT().PRRepository().Return(prRepo)
-				sel.EXPECT().Select(mock.MatchedBy(func(ids []uuid.UUID) bool { return len(ids) == 3 }), 2).Return([]uuid.UUID{c1, c2})
+				sel.EXPECT().Select(mock.MatchedBy(func(ids []string) bool { return len(ids) == 3 }), 2).Return([]string{c1, c2})
 				prRepo.EXPECT().CreatePR(ctx, mock.MatchedBy(func(pr *models.PullRequest) bool {
-					return pr.ID == prID && pr.AuthorID == authorID && pr.Title == "feat" && len(pr.ReviewerIDs) == 2
+					return pr.ID == prID && pr.AuthorID == authorID && pr.Title == "feat" && len(pr.ReviewerIDs) == 2 && pr.ReviewerIDs[0] == c1 && pr.ReviewerIDs[1] == c2
 				})).Return(nil)
 				tx.EXPECT().Commit(ctx).Return(nil)
 			},
@@ -54,9 +53,9 @@ func TestPRService_CreatePR(t *testing.T) {
 				tx.EXPECT().UserRepository().Return(userRepo)
 				userRepo.EXPECT().GetUserByID(ctx, authorID).Return(&models.User{ID: authorID}, nil)
 				userRepo.EXPECT().GetTeamIDByUserID(ctx, authorID).Return(teamID, nil)
-				userRepo.EXPECT().ListActiveMembersByTeamID(ctx, teamID).Return([]uuid.UUID{authorID, c1}, nil)
+				userRepo.EXPECT().ListActiveMembersByTeamID(ctx, teamID).Return([]string{authorID, c1}, nil)
 				tx.EXPECT().PRRepository().Return(prRepo)
-				sel.EXPECT().Select(mock.Anything, 2).Return([]uuid.UUID{c1})
+				sel.EXPECT().Select(mock.Anything, 2).Return([]string{c1})
 				prRepo.EXPECT().CreatePR(ctx, mock.MatchedBy(func(pr *models.PullRequest) bool {
 					return pr.ID == prID && len(pr.ReviewerIDs) == 1 && pr.ReviewerIDs[0] == c1
 				})).Return(nil)
@@ -71,9 +70,9 @@ func TestPRService_CreatePR(t *testing.T) {
 				tx.EXPECT().UserRepository().Return(userRepo)
 				userRepo.EXPECT().GetUserByID(ctx, authorID).Return(&models.User{ID: authorID}, nil)
 				userRepo.EXPECT().GetTeamIDByUserID(ctx, authorID).Return(teamID, nil)
-				userRepo.EXPECT().ListActiveMembersByTeamID(ctx, teamID).Return([]uuid.UUID{authorID}, nil)
+				userRepo.EXPECT().ListActiveMembersByTeamID(ctx, teamID).Return([]string{authorID}, nil)
 				tx.EXPECT().PRRepository().Return(prRepo)
-				sel.EXPECT().Select([]uuid.UUID{}, 2).Return(nil)
+				sel.EXPECT().Select([]string{}, 2).Return(nil)
 				prRepo.EXPECT().CreatePR(ctx, mock.MatchedBy(func(pr *models.PullRequest) bool { return pr.ID == prID && len(pr.ReviewerIDs) == 0 })).Return(nil)
 				tx.EXPECT().Commit(ctx).Return(nil)
 			},
@@ -132,10 +131,10 @@ func TestPRService_CreatePR(t *testing.T) {
 
 func TestPRService_ReassignReviewer(t *testing.T) {
 	ctx := context.Background()
-	prID := uuid.New().String()
-	oldID := uuid.New()
-	newID := uuid.New()
-	authorID := uuid.New()
+	prID := "pr-2"
+	oldID := "user-old"
+	newID := "user-new"
+	authorID := "user-author"
 	teamID := uuid.New()
 
 	tests := []struct {
@@ -148,14 +147,14 @@ func TestPRService_ReassignReviewer(t *testing.T) {
 			setup: func(uow *mocks.UnitOfWork, tx *mocks.Transaction, userRepo *mocks.UserRepository, prRepo *mocks.PRRepository, sel *mocks.ReviewerSelector) {
 				uow.EXPECT().Begin(ctx).Return(tx, nil)
 				tx.EXPECT().PRRepository().Return(prRepo)
-				prRepo.EXPECT().LockPRByID(ctx, prID).Return(&models.PullRequest{ID: prID, AuthorID: authorID, Status: models.PRStatusOPEN, ReviewerIDs: []uuid.UUID{oldID}}, nil)
+				prRepo.EXPECT().LockPRByID(ctx, prID).Return(&models.PullRequest{ID: prID, AuthorID: authorID, Status: models.PRStatusOPEN, ReviewerIDs: []string{oldID}}, nil)
 				tx.EXPECT().UserRepository().Return(userRepo)
 				userRepo.EXPECT().GetTeamIDByUserID(ctx, authorID).Return(teamID, nil)
-				userRepo.EXPECT().ListActiveMembersByTeamID(ctx, teamID).Return([]uuid.UUID{authorID, oldID, newID}, nil)
-				sel.EXPECT().Select(mock.MatchedBy(func(ids []uuid.UUID) bool { return len(ids) == 1 && ids[0] == newID }), 1).Return([]uuid.UUID{newID})
+				userRepo.EXPECT().ListActiveMembersByTeamID(ctx, teamID).Return([]string{authorID, oldID, newID}, nil)
+				sel.EXPECT().Select(mock.MatchedBy(func(ids []string) bool { return len(ids) == 1 && ids[0] == newID }), 1).Return([]string{newID})
 				prRepo.EXPECT().RemoveReviewer(ctx, prID, oldID).Return(nil)
 				prRepo.EXPECT().AddReviewer(ctx, prID, newID).Return(nil)
-				prRepo.EXPECT().GetPRByID(ctx, prID).Return(&models.PullRequest{ID: prID, AuthorID: authorID, Status: models.PRStatusOPEN, ReviewerIDs: []uuid.UUID{newID}}, nil)
+				prRepo.EXPECT().GetPRByID(ctx, prID).Return(&models.PullRequest{ID: prID, AuthorID: authorID, Status: models.PRStatusOPEN, ReviewerIDs: []string{newID}}, nil)
 				tx.EXPECT().Commit(ctx).Return(nil)
 			},
 		},
@@ -174,7 +173,7 @@ func TestPRService_ReassignReviewer(t *testing.T) {
 			setup: func(uow *mocks.UnitOfWork, tx *mocks.Transaction, userRepo *mocks.UserRepository, prRepo *mocks.PRRepository, sel *mocks.ReviewerSelector) {
 				uow.EXPECT().Begin(ctx).Return(tx, nil)
 				tx.EXPECT().PRRepository().Return(prRepo)
-				prRepo.EXPECT().LockPRByID(ctx, prID).Return(&models.PullRequest{ID: prID, Status: models.PRStatusOPEN, ReviewerIDs: []uuid.UUID{}}, nil)
+				prRepo.EXPECT().LockPRByID(ctx, prID).Return(&models.PullRequest{ID: prID, Status: models.PRStatusOPEN, ReviewerIDs: []string{}}, nil)
 				tx.EXPECT().Rollback(ctx).Return(nil)
 			},
 			wantErr: utils.ErrReviewerNotAssigned,
@@ -184,10 +183,10 @@ func TestPRService_ReassignReviewer(t *testing.T) {
 			setup: func(uow *mocks.UnitOfWork, tx *mocks.Transaction, userRepo *mocks.UserRepository, prRepo *mocks.PRRepository, sel *mocks.ReviewerSelector) {
 				uow.EXPECT().Begin(ctx).Return(tx, nil)
 				tx.EXPECT().PRRepository().Return(prRepo)
-				prRepo.EXPECT().LockPRByID(ctx, prID).Return(&models.PullRequest{ID: prID, AuthorID: authorID, Status: models.PRStatusOPEN, ReviewerIDs: []uuid.UUID{oldID}}, nil)
+				prRepo.EXPECT().LockPRByID(ctx, prID).Return(&models.PullRequest{ID: prID, AuthorID: authorID, Status: models.PRStatusOPEN, ReviewerIDs: []string{oldID}}, nil)
 				tx.EXPECT().UserRepository().Return(userRepo)
 				userRepo.EXPECT().GetTeamIDByUserID(ctx, authorID).Return(teamID, nil)
-				userRepo.EXPECT().ListActiveMembersByTeamID(ctx, teamID).Return([]uuid.UUID{authorID, oldID}, nil)
+				userRepo.EXPECT().ListActiveMembersByTeamID(ctx, teamID).Return([]string{authorID, oldID}, nil)
 				tx.EXPECT().Rollback(ctx).Return(nil)
 			},
 			wantErr: utils.ErrNoReplacementCandidates,
@@ -202,7 +201,6 @@ func TestPRService_ReassignReviewer(t *testing.T) {
 			mockPRRepo := mocks.NewPRRepository(t)
 			mockSel := mocks.NewReviewerSelector(t)
 			log := logger.New("dev")
-
 			if tt.setup != nil {
 				tt.setup(mockUOW, mockTx, mockUserRepo, mockPRRepo, mockSel)
 			}
@@ -222,7 +220,7 @@ func TestPRService_ReassignReviewer(t *testing.T) {
 
 func TestPRService_MergePR(t *testing.T) {
 	ctx := context.Background()
-	prID := uuid.New().String()
+	prID := "pr-merge"
 	tests := []struct {
 		name    string
 		setup   func(uow *mocks.UnitOfWork, tx *mocks.Transaction, prRepo *mocks.PRRepository)
@@ -274,8 +272,10 @@ func TestPRService_MergePR(t *testing.T) {
 
 func TestPRService_GetAndList(t *testing.T) {
 	ctx := context.Background()
-	prID := uuid.New().String()
-	reviewer := uuid.New()
+	prID := "pr-get"
+	reviewer := "user-r1"
+	stOpen := models.PRStatusOPEN
+
 	tests := []struct {
 		name      string
 		setupGet  func(uow *mocks.UnitOfWork, tx *mocks.Transaction, prRepo *mocks.PRRepository)
@@ -292,8 +292,7 @@ func TestPRService_GetAndList(t *testing.T) {
 			setupList: func(uow *mocks.UnitOfWork, tx *mocks.Transaction, prRepo *mocks.PRRepository) {
 				uow.EXPECT().Begin(ctx).Return(tx, nil)
 				tx.EXPECT().PRRepository().Return(prRepo)
-				st := models.PRStatusOPEN
-				prRepo.EXPECT().ListPRsByReviewer(ctx, reviewer, &st).Return([]*models.PullRequest{{ID: prID}}, nil)
+				prRepo.EXPECT().ListPRsByReviewer(ctx, reviewer, &stOpen).Return([]*models.PullRequest{{ID: prID}}, nil)
 				tx.EXPECT().Rollback(ctx).Return(nil)
 			},
 		},
@@ -306,19 +305,16 @@ func TestPRService_GetAndList(t *testing.T) {
 			mockPRRepo := mocks.NewPRRepository(t)
 			log := logger.New("dev")
 			svc := app.NewService(mockUOW, mocks.NewReviewerSelector(t), log)
-
 			if tt.setupGet != nil {
 				tt.setupGet(mockUOW, mockTx, mockPRRepo)
 			}
 			pr, err := svc.GetPR(ctx, prID)
 			require.NoError(t, err)
 			require.NotNil(t, pr)
-
 			if tt.setupList != nil {
 				tt.setupList(mockUOW, mockTx, mockPRRepo)
 			}
-			st := models.PRStatusOPEN
-			list, err := svc.ListPRsByAssignee(ctx, reviewer, &st)
+			list, err := svc.ListPRsByAssignee(ctx, reviewer, &stOpen)
 			require.NoError(t, err)
 			require.Len(t, list, 1)
 		})

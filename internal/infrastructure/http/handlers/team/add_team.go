@@ -7,8 +7,6 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
-
-	"github.com/google/uuid"
 )
 
 type AddTeamMember struct {
@@ -44,30 +42,21 @@ func (h *TeamHandler) AddTeam(w http.ResponseWriter, r *http.Request) {
 
 	var usersIn []*models.User
 	for _, m := range req.Members {
-		var id uuid.UUID
-		if m.UserID != "" {
-			parsed, err := uuid.Parse(m.UserID)
-			if err != nil {
-				_ = utils.WriteError(w, http.StatusBadRequest, "BAD_REQUEST", "invalid user_id")
-				return
-			}
-			id = parsed
-		}
-		usersIn = append(usersIn, &models.User{ID: id, Name: m.Username, IsActive: m.IsActive})
+		usersIn = append(usersIn, &models.User{ID: m.UserID, Name: m.Username, IsActive: m.IsActive})
 	}
 
 	team, users, err := h.teamService.CreateTeamWithMembers(r.Context(), req.TeamName, usersIn)
 	if err != nil {
 		switch {
 		case errors.Is(err, utils.ErrAlreadyExists):
-			_ = utils.WriteError(w, http.StatusConflict, "CONFLICT", err.Error())
+			_ = utils.WriteError(w, http.StatusConflict, utils.HTTPCodeConverter(http.StatusConflict), err.Error())
 			return
 		case errors.Is(err, utils.ErrInvalidArgument):
-			_ = utils.WriteError(w, http.StatusBadRequest, "BAD_REQUEST", err.Error())
+			_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPCodeConverter(http.StatusBadRequest), err.Error())
 			return
 		default:
 			h.log.Error("AddTeam service failed", slog.String("team_name", req.TeamName), slog.Any("err", err))
-			_ = utils.WriteError(w, http.StatusInternalServerError, "INTERNAL", err.Error())
+			_ = utils.WriteError(w, http.StatusInternalServerError, utils.HTTPCodeConverter(http.StatusInternalServerError), err.Error())
 			return
 		}
 	}
@@ -76,7 +65,7 @@ func (h *TeamHandler) AddTeam(w http.ResponseWriter, r *http.Request) {
 	resp.Team.TeamName = team.Name
 	for _, u := range users {
 		resp.Team.Members = append(resp.Team.Members, AddTeamMember{
-			UserID:   u.ID.String(),
+			UserID:   u.ID,
 			Username: u.Name,
 			IsActive: u.IsActive,
 		})

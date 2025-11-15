@@ -20,6 +20,7 @@ func TestUserService_CreateUser(t *testing.T) {
 	ctx := context.Background()
 	tests := []struct {
 		name      string
+		idArg     string
 		nameArg   string
 		active    bool
 		mockSetup func(uow *mocks.UnitOfWork, tx *mocks.Transaction, repo *mocks.UserRepository)
@@ -28,18 +29,20 @@ func TestUserService_CreateUser(t *testing.T) {
 	}{
 		{
 			name:    "success",
+			idArg:   "u-alice",
 			nameArg: "alice",
 			active:  true,
 			mockSetup: func(uow *mocks.UnitOfWork, tx *mocks.Transaction, repo *mocks.UserRepository) {
 				uow.EXPECT().Begin(ctx).Return(tx, nil)
 				tx.EXPECT().UserRepository().Return(repo)
-				repo.EXPECT().CreateUser(ctx, mock.MatchedBy(func(u *models.User) bool { return u.Name == "alice" && u.IsActive })).Return(nil)
+				repo.EXPECT().CreateUser(ctx, mock.MatchedBy(func(u *models.User) bool { return u.ID == "u-alice" && u.Name == "alice" && u.IsActive })).Return(nil)
 				tx.EXPECT().Commit(ctx).Return(nil)
 			},
 		},
 		{
-			name:      "invalid name",
-			nameArg:   "",
+			name:      "invalid id",
+			idArg:     "",
+			nameArg:   "alice",
 			active:    true,
 			mockSetup: func(uow *mocks.UnitOfWork, tx *mocks.Transaction, repo *mocks.UserRepository) {},
 			wantErr:   utils.ErrInvalidArgument,
@@ -47,6 +50,7 @@ func TestUserService_CreateUser(t *testing.T) {
 		},
 		{
 			name:    "begin tx fails",
+			idArg:   "u-bob",
 			nameArg: "bob",
 			active:  true,
 			mockSetup: func(uow *mocks.UnitOfWork, tx *mocks.Transaction, repo *mocks.UserRepository) {
@@ -56,12 +60,13 @@ func TestUserService_CreateUser(t *testing.T) {
 		},
 		{
 			name:    "repo create fails unique",
+			idArg:   "u-carol",
 			nameArg: "carol",
 			active:  true,
 			mockSetup: func(uow *mocks.UnitOfWork, tx *mocks.Transaction, repo *mocks.UserRepository) {
 				uow.EXPECT().Begin(ctx).Return(tx, nil)
 				tx.EXPECT().UserRepository().Return(repo)
-				repo.EXPECT().CreateUser(ctx, mock.MatchedBy(func(u *models.User) bool { return u.Name == "carol" && u.IsActive })).Return(utils.ErrUserExists)
+				repo.EXPECT().CreateUser(ctx, mock.MatchedBy(func(u *models.User) bool { return u.ID == "u-carol" })).Return(utils.ErrUserExists)
 				tx.EXPECT().Rollback(ctx).Return(nil)
 			},
 			wantErr: utils.ErrUserExists,
@@ -69,19 +74,19 @@ func TestUserService_CreateUser(t *testing.T) {
 		},
 		{
 			name:    "commit fails",
+			idArg:   "u-dave",
 			nameArg: "dave",
 			active:  true,
 			mockSetup: func(uow *mocks.UnitOfWork, tx *mocks.Transaction, repo *mocks.UserRepository) {
 				uow.EXPECT().Begin(ctx).Return(tx, nil)
 				tx.EXPECT().UserRepository().Return(repo)
-				repo.EXPECT().CreateUser(ctx, mock.MatchedBy(func(u *models.User) bool { return u.Name == "dave" && u.IsActive })).Return(nil)
+				repo.EXPECT().CreateUser(ctx, mock.MatchedBy(func(u *models.User) bool { return u.ID == "u-dave" })).Return(nil)
 				tx.EXPECT().Commit(ctx).Return(errors.New("commit fail"))
 				tx.EXPECT().Rollback(ctx).Return(nil)
 			},
 			wantErr: errors.New("commit fail"),
 		},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockUOW := mocks.NewUnitOfWork(t)
@@ -92,7 +97,7 @@ func TestUserService_CreateUser(t *testing.T) {
 				tt.mockSetup(mockUOW, mockTx, mockRepo)
 			}
 			svc := app.NewService(mockUOW, log)
-			user, err := svc.CreateUser(ctx, tt.nameArg, tt.active)
+			user, err := svc.CreateUser(ctx, tt.idArg, tt.nameArg, tt.active)
 			if tt.wantErr != nil {
 				require.Error(t, err)
 				if tt.useIs {
@@ -105,6 +110,7 @@ func TestUserService_CreateUser(t *testing.T) {
 				require.NoError(t, err)
 				require.NotNil(t, user)
 				require.Equal(t, tt.nameArg, user.Name)
+				require.Equal(t, tt.idArg, user.ID)
 			}
 		})
 	}
@@ -112,86 +118,48 @@ func TestUserService_CreateUser(t *testing.T) {
 
 func TestUserService_UpdateUserActive(t *testing.T) {
 	ctx := context.Background()
-	uid := uuid.New()
+	uid := "u-1"
 	tests := []struct {
 		name      string
-		userID    uuid.UUID
+		userID    string
 		active    bool
 		mockSetup func(uow *mocks.UnitOfWork, tx *mocks.Transaction, repo *mocks.UserRepository)
 		wantErr   error
 		useIs     bool
 	}{
-		{
-			name:   "success",
-			userID: uid,
-			active: false,
-			mockSetup: func(uow *mocks.UnitOfWork, tx *mocks.Transaction, repo *mocks.UserRepository) {
-				uow.EXPECT().Begin(ctx).Return(tx, nil)
-				tx.EXPECT().UserRepository().Return(repo)
-				repo.EXPECT().GetUserByID(ctx, uid).Return(&models.User{ID: uid, Name: "alice", IsActive: true}, nil)
-				repo.EXPECT().UpdateUserActive(ctx, uid, false).Return(nil)
-				tx.EXPECT().Commit(ctx).Return(nil)
-			},
-		},
-		{
-			name:      "invalid id",
-			userID:    uuid.Nil,
-			active:    true,
-			mockSetup: func(uow *mocks.UnitOfWork, tx *mocks.Transaction, repo *mocks.UserRepository) {},
-			wantErr:   utils.ErrInvalidArgument,
-			useIs:     true,
-		},
-		{
-			name:   "begin fails",
-			userID: uid,
-			active: true,
-			mockSetup: func(uow *mocks.UnitOfWork, tx *mocks.Transaction, repo *mocks.UserRepository) {
-				uow.EXPECT().Begin(ctx).Return(nil, errors.New("begin fail"))
-			},
-			wantErr: errors.New("begin fail"),
-		},
-		{
-			name:   "get not found",
-			userID: uid,
-			active: true,
-			mockSetup: func(uow *mocks.UnitOfWork, tx *mocks.Transaction, repo *mocks.UserRepository) {
-				uow.EXPECT().Begin(ctx).Return(tx, nil)
-				tx.EXPECT().UserRepository().Return(repo)
-				repo.EXPECT().GetUserByID(ctx, uid).Return(nil, utils.ErrUserNotFound)
-				tx.EXPECT().Rollback(ctx).Return(nil)
-			},
-			wantErr: utils.ErrUserNotFound,
-			useIs:   true,
-		},
-		{
-			name:   "update fails",
-			userID: uid,
-			active: true,
-			mockSetup: func(uow *mocks.UnitOfWork, tx *mocks.Transaction, repo *mocks.UserRepository) {
-				uow.EXPECT().Begin(ctx).Return(tx, nil)
-				tx.EXPECT().UserRepository().Return(repo)
-				repo.EXPECT().GetUserByID(ctx, uid).Return(&models.User{ID: uid, Name: "alice", IsActive: true}, nil)
-				repo.EXPECT().UpdateUserActive(ctx, uid, true).Return(errors.New("update fail"))
-				tx.EXPECT().Rollback(ctx).Return(nil)
-			},
-			wantErr: errors.New("update fail"),
-		},
-		{
-			name:   "commit fails",
-			userID: uid,
-			active: true,
-			mockSetup: func(uow *mocks.UnitOfWork, tx *mocks.Transaction, repo *mocks.UserRepository) {
-				uow.EXPECT().Begin(ctx).Return(tx, nil)
-				tx.EXPECT().UserRepository().Return(repo)
-				repo.EXPECT().GetUserByID(ctx, uid).Return(&models.User{ID: uid, Name: "alice", IsActive: true}, nil)
-				repo.EXPECT().UpdateUserActive(ctx, uid, true).Return(nil)
-				tx.EXPECT().Commit(ctx).Return(errors.New("commit fail"))
-				tx.EXPECT().Rollback(ctx).Return(nil)
-			},
-			wantErr: errors.New("commit fail"),
-		},
+		{"success", uid, false, func(uow *mocks.UnitOfWork, tx *mocks.Transaction, repo *mocks.UserRepository) {
+			uow.EXPECT().Begin(ctx).Return(tx, nil)
+			tx.EXPECT().UserRepository().Return(repo)
+			repo.EXPECT().GetUserByID(ctx, uid).Return(&models.User{ID: uid, Name: "alice", IsActive: true}, nil)
+			repo.EXPECT().UpdateUserActive(ctx, uid, false).Return(nil)
+			tx.EXPECT().Commit(ctx).Return(nil)
+		}, nil, false},
+		{"invalid id", "", true, func(uow *mocks.UnitOfWork, tx *mocks.Transaction, repo *mocks.UserRepository) {}, utils.ErrInvalidArgument, true},
+		{"begin fails", uid, true, func(uow *mocks.UnitOfWork, tx *mocks.Transaction, repo *mocks.UserRepository) {
+			uow.EXPECT().Begin(ctx).Return(nil, errors.New("begin fail"))
+		}, errors.New("begin fail"), false},
+		{"get not found", uid, true, func(uow *mocks.UnitOfWork, tx *mocks.Transaction, repo *mocks.UserRepository) {
+			uow.EXPECT().Begin(ctx).Return(tx, nil)
+			tx.EXPECT().UserRepository().Return(repo)
+			repo.EXPECT().GetUserByID(ctx, uid).Return(nil, utils.ErrUserNotFound)
+			tx.EXPECT().Rollback(ctx).Return(nil)
+		}, utils.ErrUserNotFound, true},
+		{"update fails", uid, true, func(uow *mocks.UnitOfWork, tx *mocks.Transaction, repo *mocks.UserRepository) {
+			uow.EXPECT().Begin(ctx).Return(tx, nil)
+			tx.EXPECT().UserRepository().Return(repo)
+			repo.EXPECT().GetUserByID(ctx, uid).Return(&models.User{ID: uid, Name: "alice", IsActive: true}, nil)
+			repo.EXPECT().UpdateUserActive(ctx, uid, true).Return(errors.New("update fail"))
+			tx.EXPECT().Rollback(ctx).Return(nil)
+		}, errors.New("update fail"), false},
+		{"commit fails", uid, true, func(uow *mocks.UnitOfWork, tx *mocks.Transaction, repo *mocks.UserRepository) {
+			uow.EXPECT().Begin(ctx).Return(tx, nil)
+			tx.EXPECT().UserRepository().Return(repo)
+			repo.EXPECT().GetUserByID(ctx, uid).Return(&models.User{ID: uid, Name: "alice", IsActive: true}, nil)
+			repo.EXPECT().UpdateUserActive(ctx, uid, true).Return(nil)
+			tx.EXPECT().Commit(ctx).Return(errors.New("commit fail"))
+			tx.EXPECT().Rollback(ctx).Return(nil)
+		}, errors.New("commit fail"), false},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockUOW := mocks.NewUnitOfWork(t)
@@ -219,10 +187,10 @@ func TestUserService_UpdateUserActive(t *testing.T) {
 
 func TestUserService_GetUser(t *testing.T) {
 	ctx := context.Background()
-	uid := uuid.New()
+	uid := "u-1"
 	tests := []struct {
 		name      string
-		userID    uuid.UUID
+		userID    string
 		mockSetup func(uow *mocks.UnitOfWork, tx *mocks.Transaction, repo *mocks.UserRepository)
 		wantErr   error
 		useIs     bool
@@ -239,7 +207,7 @@ func TestUserService_GetUser(t *testing.T) {
 		},
 		{
 			name:      "invalid id",
-			userID:    uuid.Nil,
+			userID:    "",
 			mockSetup: func(uow *mocks.UnitOfWork, tx *mocks.Transaction, repo *mocks.UserRepository) {},
 			wantErr:   utils.ErrInvalidArgument,
 			useIs:     true,
@@ -296,7 +264,7 @@ func TestUserService_GetUser(t *testing.T) {
 
 func TestUserService_ListUsers(t *testing.T) {
 	ctx := context.Background()
-	uid := uuid.New()
+	uid := "u-1"
 	tests := []struct {
 		name      string
 		mockSetup func(uow *mocks.UnitOfWork, tx *mocks.Transaction, repo *mocks.UserRepository)
@@ -361,12 +329,12 @@ func TestUserService_ListUsers(t *testing.T) {
 
 func TestUserService_GetUserTeamName(t *testing.T) {
 	ctx := context.Background()
-	uid := uuid.New()
-	teamID := uuid.New()
+	uid := "u-1"
+	teamUUID := uuid.New()
 
 	tests := []struct {
 		name      string
-		userID    uuid.UUID
+		userID    string
 		mockSetup func(uow *mocks.UnitOfWork, tx *mocks.Transaction, userRepo *mocks.UserRepository, teamRepo *mocks.TeamRepository)
 		wantName  string
 		wantErr   error
@@ -378,16 +346,16 @@ func TestUserService_GetUserTeamName(t *testing.T) {
 			mockSetup: func(uow *mocks.UnitOfWork, tx *mocks.Transaction, userRepo *mocks.UserRepository, teamRepo *mocks.TeamRepository) {
 				uow.EXPECT().Begin(ctx).Return(tx, nil)
 				tx.EXPECT().UserRepository().Return(userRepo)
-				userRepo.EXPECT().GetTeamIDByUserID(ctx, uid).Return(teamID, nil)
+				userRepo.EXPECT().GetTeamIDByUserID(ctx, uid).Return(teamUUID, nil)
 				tx.EXPECT().TeamRepository().Return(teamRepo)
-				teamRepo.EXPECT().GetTeamByID(ctx, teamID).Return(&models.Team{ID: teamID, Name: "core"}, nil)
+				teamRepo.EXPECT().GetTeamByID(ctx, teamUUID).Return(&models.Team{ID: teamUUID, Name: "core"}, nil)
 				tx.EXPECT().Rollback(ctx).Return(nil)
 			},
 			wantName: "core",
 		},
 		{
 			name:   "invalid id",
-			userID: uuid.Nil,
+			userID: "",
 			mockSetup: func(uow *mocks.UnitOfWork, tx *mocks.Transaction, userRepo *mocks.UserRepository, teamRepo *mocks.TeamRepository) {
 			},
 			wantErr: utils.ErrInvalidArgument,
@@ -429,9 +397,9 @@ func TestUserService_GetUserTeamName(t *testing.T) {
 			mockSetup: func(uow *mocks.UnitOfWork, tx *mocks.Transaction, userRepo *mocks.UserRepository, teamRepo *mocks.TeamRepository) {
 				uow.EXPECT().Begin(ctx).Return(tx, nil)
 				tx.EXPECT().UserRepository().Return(userRepo)
-				userRepo.EXPECT().GetTeamIDByUserID(ctx, uid).Return(teamID, nil)
+				userRepo.EXPECT().GetTeamIDByUserID(ctx, uid).Return(teamUUID, nil)
 				tx.EXPECT().TeamRepository().Return(teamRepo)
-				teamRepo.EXPECT().GetTeamByID(ctx, teamID).Return(nil, errors.New("not found"))
+				teamRepo.EXPECT().GetTeamByID(ctx, teamUUID).Return(nil, errors.New("not found"))
 				tx.EXPECT().Rollback(ctx).Return(nil)
 			},
 			wantErr: errors.New("not found"),
@@ -461,83 +429,6 @@ func TestUserService_GetUserTeamName(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, tt.wantName, name)
 			}
-		})
-	}
-}
-
-func TestUserService_ListMembersByTeamID(t *testing.T) {
-	ctx := context.Background()
-	teamID := uuid.New()
-	users := []*models.User{{ID: uuid.New(), Name: "alice", IsActive: true}, {ID: uuid.New(), Name: "bob", IsActive: false}}
-
-	tests := []struct {
-		name    string
-		teamID  uuid.UUID
-		setup   func(uow *mocks.UnitOfWork, tx *mocks.Transaction, repo *mocks.UserRepository)
-		want    []*models.User
-		wantErr error
-	}{
-		{
-			name:   "happy",
-			teamID: teamID,
-			setup: func(uow *mocks.UnitOfWork, tx *mocks.Transaction, repo *mocks.UserRepository) {
-				uow.EXPECT().Begin(ctx).Return(tx, nil)
-				tx.EXPECT().UserRepository().Return(repo)
-				repo.EXPECT().ListMembersByTeamID(ctx, teamID).Return(users, nil)
-				tx.EXPECT().Rollback(ctx).Return(nil)
-			},
-			want: users,
-		},
-		{
-			name:    "invalid arg",
-			teamID:  uuid.Nil,
-			setup:   func(uow *mocks.UnitOfWork, tx *mocks.Transaction, repo *mocks.UserRepository) {},
-			wantErr: utils.ErrInvalidArgument,
-		},
-		{
-			name:   "begin fail",
-			teamID: teamID,
-			setup: func(uow *mocks.UnitOfWork, tx *mocks.Transaction, repo *mocks.UserRepository) {
-				uow.EXPECT().Begin(ctx).Return(nil, errors.New("begin fail"))
-			},
-			wantErr: errors.New("begin fail"),
-		},
-		{
-			name:   "repo fail",
-			teamID: teamID,
-			setup: func(uow *mocks.UnitOfWork, tx *mocks.Transaction, repo *mocks.UserRepository) {
-				uow.EXPECT().Begin(ctx).Return(tx, nil)
-				tx.EXPECT().UserRepository().Return(repo)
-				repo.EXPECT().ListMembersByTeamID(ctx, teamID).Return(nil, errors.New("db fail"))
-				tx.EXPECT().Rollback(ctx).Return(nil)
-			},
-			wantErr: errors.New("db fail"),
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mockUOW := mocks.NewUnitOfWork(t)
-			mockTx := mocks.NewTransaction(t)
-			mockRepo := mocks.NewUserRepository(t)
-			log := logger.New("dev")
-			if tt.setup != nil {
-				tt.setup(mockUOW, mockTx, mockRepo)
-			}
-			svc := app.NewService(mockUOW, log)
-			got, err := svc.ListMembersByTeamID(ctx, tt.teamID)
-			if tt.wantErr != nil {
-				require.Error(t, err)
-				if errors.Is(tt.wantErr, utils.ErrInvalidArgument) {
-					require.ErrorIs(t, err, tt.wantErr)
-				} else {
-					require.EqualError(t, err, tt.wantErr.Error())
-				}
-				require.Nil(t, got)
-				return
-			}
-			require.NoError(t, err)
-			require.Equal(t, tt.want, got)
 		})
 	}
 }

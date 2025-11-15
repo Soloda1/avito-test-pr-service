@@ -6,8 +6,6 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
-
-	"github.com/google/uuid"
 )
 
 type SetIsActiveRequest struct {
@@ -31,28 +29,28 @@ func (h *UserHandler) SetIsActive(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := utils.Validate(req); err != nil {
-		_ = utils.WriteError(w, http.StatusBadRequest, "BAD_REQUEST", "validation failed")
+		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPCodeConverter(http.StatusBadRequest), utils.ErrValidationFailed.Error())
 		return
 	}
-	userID, err := uuid.Parse(req.UserID)
-	if err != nil {
-		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPCodeConverter(http.StatusBadRequest), "invalid user_id")
+	userID := req.UserID
+	if userID == "" {
+		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPCodeConverter(http.StatusBadRequest), utils.ErrInvalidUserID.Error())
 		return
 	}
 
-	h.log.Info("SetIsActive request", slog.String("user_id", req.UserID), slog.Bool("is_active", req.IsActive))
+	h.log.Info("SetIsActive request", slog.String("user_id", userID), slog.Bool("is_active", req.IsActive))
 
 	if err := h.userService.UpdateUserActive(r.Context(), userID, req.IsActive); err != nil {
 		switch {
 		case errors.Is(err, utils.ErrUserNotFound):
-			_ = utils.WriteError(w, http.StatusNotFound, "NOT_FOUND", err.Error())
+			_ = utils.WriteError(w, http.StatusNotFound, utils.HTTPCodeConverter(http.StatusNotFound), err.Error())
 			return
 		case errors.Is(err, utils.ErrInvalidArgument):
-			_ = utils.WriteError(w, http.StatusBadRequest, "BAD_REQUEST", err.Error())
+			_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPCodeConverter(http.StatusBadRequest), err.Error())
 			return
 		default:
-			h.log.Error("SetIsActive service failed", slog.String("user_id", req.UserID), slog.Any("err", err))
-			_ = utils.WriteError(w, http.StatusInternalServerError, "INTERNAL", "internal error")
+			h.log.Error("SetIsActive service failed", slog.String("user_id", userID), slog.Any("err", err))
+			_ = utils.WriteError(w, http.StatusInternalServerError, utils.HTTPCodeConverter(http.StatusInternalServerError), utils.ErrInternal.Error())
 			return
 		}
 	}
@@ -60,23 +58,23 @@ func (h *UserHandler) SetIsActive(w http.ResponseWriter, r *http.Request) {
 	user, err := h.userService.GetUser(r.Context(), userID)
 	if err != nil {
 		if errors.Is(err, utils.ErrUserNotFound) {
-			_ = utils.WriteError(w, http.StatusNotFound, "NOT_FOUND", err.Error())
+			_ = utils.WriteError(w, http.StatusNotFound, utils.HTTPCodeConverter(http.StatusNotFound), err.Error())
 			return
 		}
-		h.log.Error("GetUser after SetIsActive failed", slog.String("user_id", req.UserID), slog.Any("err", err))
-		_ = utils.WriteError(w, http.StatusInternalServerError, "INTERNAL", "internal error")
+		h.log.Error("GetUser after SetIsActive failed", slog.String("user_id", userID), slog.Any("err", err))
+		_ = utils.WriteError(w, http.StatusInternalServerError, utils.HTTPCodeConverter(http.StatusInternalServerError), utils.ErrInternal.Error())
 		return
 	}
 
 	teamName, err := h.userService.GetUserTeamName(r.Context(), userID)
 	if err != nil {
-		h.log.Error("GetUserTeamName failed", slog.String("user_id", req.UserID), slog.Any("err", err))
-		_ = utils.WriteError(w, http.StatusInternalServerError, "INTERNAL", "internal error")
+		h.log.Error("GetUserTeamName failed", slog.String("user_id", userID), slog.Any("err", err))
+		_ = utils.WriteError(w, http.StatusInternalServerError, utils.HTTPCodeConverter(http.StatusInternalServerError), utils.ErrInternal.Error())
 		return
 	}
 
 	var resp SetIsActiveResponse
-	resp.User.UserID = user.ID.String()
+	resp.User.UserID = user.ID
 	resp.User.Username = user.Name
 	resp.User.TeamName = teamName
 	resp.User.IsActive = user.IsActive
