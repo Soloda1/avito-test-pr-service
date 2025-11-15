@@ -3,6 +3,7 @@ package config
 import (
 	"log"
 	"os"
+	"time"
 
 	"github.com/spf13/viper"
 )
@@ -14,8 +15,12 @@ type Config struct {
 }
 
 type HTTPServer struct {
-	Address string
-	Port    int
+	Address        string
+	Port           int
+	ReadTimeout    time.Duration
+	WriteTimeout   time.Duration
+	IdleTimeout    time.Duration
+	RequestTimeout time.Duration
 }
 
 type Database struct {
@@ -36,6 +41,10 @@ func MustLoad() *Config {
 
 	viper.SetDefault("http_server.address", "0.0.0.0")
 	viper.SetDefault("http_server.port", 8080)
+	viper.SetDefault("http_server.read_timeout", "10s")
+	viper.SetDefault("http_server.write_timeout", "10s")
+	viper.SetDefault("http_server.idle_timeout", "60s")
+	viper.SetDefault("http_server.request_timeout", "10s")
 
 	viper.SetDefault("database.username", "postgres")
 	viper.SetDefault("database.password", "admin")
@@ -52,8 +61,12 @@ func MustLoad() *Config {
 	config := &Config{
 		Env: viper.GetString("env"),
 		HTTPServer: HTTPServer{
-			Address: viper.GetString("http_server.address"),
-			Port:    viper.GetInt("http_server.port"),
+			Address:        viper.GetString("http_server.address"),
+			Port:           viper.GetInt("http_server.port"),
+			ReadTimeout:    viper.GetDuration("http_server.read_timeout"),
+			WriteTimeout:   viper.GetDuration("http_server.write_timeout"),
+			IdleTimeout:    viper.GetDuration("http_server.idle_timeout"),
+			RequestTimeout: viper.GetDuration("http_server.request_timeout"),
 		},
 		Database: Database{
 			Username:       viper.GetString("database.username"),

@@ -7,7 +7,6 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
-	"time"
 )
 
 type Server struct {
@@ -38,9 +37,9 @@ func (s *Server) Run(cfg *config.Config) error {
 	s.server = &http.Server{
 		Addr:         s.address,
 		Handler:      s.router.GetRouter(),
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 10 * time.Second,
-		IdleTimeout:  60 * time.Second,
+		ReadTimeout:  cfg.HTTPServer.ReadTimeout,
+		WriteTimeout: cfg.HTTPServer.WriteTimeout,
+		IdleTimeout:  cfg.HTTPServer.IdleTimeout,
 	}
 
 	s.log.Info("Starting server", slog.String("address", s.address))
