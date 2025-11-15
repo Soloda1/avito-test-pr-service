@@ -186,15 +186,25 @@ func (r *PRRepository) AddReviewer(ctx context.Context, prID string, reviewerID 
 			case "23505":
 				return utils.ErrReviewerAlreadyAssigned
 			case "23503":
-				cn := strings.ToLower(pgErr.ConstraintName)
-
-				if strings.Contains(cn, "pr_id") {
+				cn := pgErr.ConstraintName
+				switch cn {
+				case "pr_reviewers_pr_id_fkey":
 					return utils.ErrPRNotFound
-				}
-				if strings.Contains(cn, "reviewer_id") || strings.Contains(cn, "user") || strings.Contains(cn, "reviewer") {
+				case "pr_reviewers_reviewer_id_fkey":
 					return utils.ErrUserNotFound
+				default:
+
+					l := strings.ToLower(cn)
+					if strings.HasSuffix(l, "_fkey") {
+						if strings.Contains(l, "pr_id") || strings.Contains(l, "prs") || strings.Contains(l, "pull") {
+							return utils.ErrPRNotFound
+						}
+						if strings.Contains(l, "reviewer_id") || strings.Contains(l, "user") {
+							return utils.ErrUserNotFound
+						}
+					}
+					return utils.ErrInvalidArgument
 				}
-				return utils.ErrInvalidArgument
 			case "22P02":
 				return utils.ErrInvalidArgument
 			}
