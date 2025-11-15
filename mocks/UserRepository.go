@@ -72,7 +72,7 @@ func (_c *UserRepository_CreateUser_Call) RunAndReturn(run func(context.Context,
 }
 
 // GetTeamIDByUserID provides a mock function with given fields: ctx, userID
-func (_m *UserRepository) GetTeamIDByUserID(ctx context.Context, userID uuid.UUID) (uuid.UUID, error) {
+func (_m *UserRepository) GetTeamIDByUserID(ctx context.Context, userID string) (uuid.UUID, error) {
 	ret := _m.Called(ctx, userID)
 
 	if len(ret) == 0 {
@@ -81,10 +81,10 @@ func (_m *UserRepository) GetTeamIDByUserID(ctx context.Context, userID uuid.UUI
 
 	var r0 uuid.UUID
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) (uuid.UUID, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string) (uuid.UUID, error)); ok {
 		return rf(ctx, userID)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) uuid.UUID); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string) uuid.UUID); ok {
 		r0 = rf(ctx, userID)
 	} else {
 		if ret.Get(0) != nil {
@@ -92,7 +92,7 @@ func (_m *UserRepository) GetTeamIDByUserID(ctx context.Context, userID uuid.UUI
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
 		r1 = rf(ctx, userID)
 	} else {
 		r1 = ret.Error(1)
@@ -108,14 +108,14 @@ type UserRepository_GetTeamIDByUserID_Call struct {
 
 // GetTeamIDByUserID is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
+//   - userID string
 func (_e *UserRepository_Expecter) GetTeamIDByUserID(ctx interface{}, userID interface{}) *UserRepository_GetTeamIDByUserID_Call {
 	return &UserRepository_GetTeamIDByUserID_Call{Call: _e.mock.On("GetTeamIDByUserID", ctx, userID)}
 }
 
-func (_c *UserRepository_GetTeamIDByUserID_Call) Run(run func(ctx context.Context, userID uuid.UUID)) *UserRepository_GetTeamIDByUserID_Call {
+func (_c *UserRepository_GetTeamIDByUserID_Call) Run(run func(ctx context.Context, userID string)) *UserRepository_GetTeamIDByUserID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(uuid.UUID))
+		run(args[0].(context.Context), args[1].(string))
 	})
 	return _c
 }
@@ -125,13 +125,13 @@ func (_c *UserRepository_GetTeamIDByUserID_Call) Return(_a0 uuid.UUID, _a1 error
 	return _c
 }
 
-func (_c *UserRepository_GetTeamIDByUserID_Call) RunAndReturn(run func(context.Context, uuid.UUID) (uuid.UUID, error)) *UserRepository_GetTeamIDByUserID_Call {
+func (_c *UserRepository_GetTeamIDByUserID_Call) RunAndReturn(run func(context.Context, string) (uuid.UUID, error)) *UserRepository_GetTeamIDByUserID_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetUserByID provides a mock function with given fields: ctx, id
-func (_m *UserRepository) GetUserByID(ctx context.Context, id uuid.UUID) (*models.User, error) {
+func (_m *UserRepository) GetUserByID(ctx context.Context, id string) (*models.User, error) {
 	ret := _m.Called(ctx, id)
 
 	if len(ret) == 0 {
@@ -140,10 +140,10 @@ func (_m *UserRepository) GetUserByID(ctx context.Context, id uuid.UUID) (*model
 
 	var r0 *models.User
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*models.User, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*models.User, error)); ok {
 		return rf(ctx, id)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) *models.User); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string) *models.User); ok {
 		r0 = rf(ctx, id)
 	} else {
 		if ret.Get(0) != nil {
@@ -151,7 +151,7 @@ func (_m *UserRepository) GetUserByID(ctx context.Context, id uuid.UUID) (*model
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
 		r1 = rf(ctx, id)
 	} else {
 		r1 = ret.Error(1)
@@ -167,14 +167,14 @@ type UserRepository_GetUserByID_Call struct {
 
 // GetUserByID is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
+//   - id string
 func (_e *UserRepository_Expecter) GetUserByID(ctx interface{}, id interface{}) *UserRepository_GetUserByID_Call {
 	return &UserRepository_GetUserByID_Call{Call: _e.mock.On("GetUserByID", ctx, id)}
 }
 
-func (_c *UserRepository_GetUserByID_Call) Run(run func(ctx context.Context, id uuid.UUID)) *UserRepository_GetUserByID_Call {
+func (_c *UserRepository_GetUserByID_Call) Run(run func(ctx context.Context, id string)) *UserRepository_GetUserByID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(uuid.UUID))
+		run(args[0].(context.Context), args[1].(string))
 	})
 	return _c
 }
@@ -184,29 +184,29 @@ func (_c *UserRepository_GetUserByID_Call) Return(_a0 *models.User, _a1 error) *
 	return _c
 }
 
-func (_c *UserRepository_GetUserByID_Call) RunAndReturn(run func(context.Context, uuid.UUID) (*models.User, error)) *UserRepository_GetUserByID_Call {
+func (_c *UserRepository_GetUserByID_Call) RunAndReturn(run func(context.Context, string) (*models.User, error)) *UserRepository_GetUserByID_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListActiveMembersByTeamID provides a mock function with given fields: ctx, teamID
-func (_m *UserRepository) ListActiveMembersByTeamID(ctx context.Context, teamID uuid.UUID) ([]uuid.UUID, error) {
+func (_m *UserRepository) ListActiveMembersByTeamID(ctx context.Context, teamID uuid.UUID) ([]string, error) {
 	ret := _m.Called(ctx, teamID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListActiveMembersByTeamID")
 	}
 
-	var r0 []uuid.UUID
+	var r0 []string
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]uuid.UUID, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]string, error)); ok {
 		return rf(ctx, teamID)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) []uuid.UUID); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) []string); ok {
 		r0 = rf(ctx, teamID)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]uuid.UUID)
+			r0 = ret.Get(0).([]string)
 		}
 	}
 
@@ -238,12 +238,12 @@ func (_c *UserRepository_ListActiveMembersByTeamID_Call) Run(run func(ctx contex
 	return _c
 }
 
-func (_c *UserRepository_ListActiveMembersByTeamID_Call) Return(_a0 []uuid.UUID, _a1 error) *UserRepository_ListActiveMembersByTeamID_Call {
+func (_c *UserRepository_ListActiveMembersByTeamID_Call) Return(_a0 []string, _a1 error) *UserRepository_ListActiveMembersByTeamID_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *UserRepository_ListActiveMembersByTeamID_Call) RunAndReturn(run func(context.Context, uuid.UUID) ([]uuid.UUID, error)) *UserRepository_ListActiveMembersByTeamID_Call {
+func (_c *UserRepository_ListActiveMembersByTeamID_Call) RunAndReturn(run func(context.Context, uuid.UUID) ([]string, error)) *UserRepository_ListActiveMembersByTeamID_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -366,7 +366,7 @@ func (_c *UserRepository_ListUsers_Call) RunAndReturn(run func(context.Context) 
 }
 
 // UpdateUserActive provides a mock function with given fields: ctx, id, isActive
-func (_m *UserRepository) UpdateUserActive(ctx context.Context, id uuid.UUID, isActive bool) error {
+func (_m *UserRepository) UpdateUserActive(ctx context.Context, id string, isActive bool) error {
 	ret := _m.Called(ctx, id, isActive)
 
 	if len(ret) == 0 {
@@ -374,7 +374,7 @@ func (_m *UserRepository) UpdateUserActive(ctx context.Context, id uuid.UUID, is
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, bool) error); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string, bool) error); ok {
 		r0 = rf(ctx, id, isActive)
 	} else {
 		r0 = ret.Error(0)
@@ -390,15 +390,15 @@ type UserRepository_UpdateUserActive_Call struct {
 
 // UpdateUserActive is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
+//   - id string
 //   - isActive bool
 func (_e *UserRepository_Expecter) UpdateUserActive(ctx interface{}, id interface{}, isActive interface{}) *UserRepository_UpdateUserActive_Call {
 	return &UserRepository_UpdateUserActive_Call{Call: _e.mock.On("UpdateUserActive", ctx, id, isActive)}
 }
 
-func (_c *UserRepository_UpdateUserActive_Call) Run(run func(ctx context.Context, id uuid.UUID, isActive bool)) *UserRepository_UpdateUserActive_Call {
+func (_c *UserRepository_UpdateUserActive_Call) Run(run func(ctx context.Context, id string, isActive bool)) *UserRepository_UpdateUserActive_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(uuid.UUID), args[2].(bool))
+		run(args[0].(context.Context), args[1].(string), args[2].(bool))
 	})
 	return _c
 }
@@ -408,13 +408,13 @@ func (_c *UserRepository_UpdateUserActive_Call) Return(_a0 error) *UserRepositor
 	return _c
 }
 
-func (_c *UserRepository_UpdateUserActive_Call) RunAndReturn(run func(context.Context, uuid.UUID, bool) error) *UserRepository_UpdateUserActive_Call {
+func (_c *UserRepository_UpdateUserActive_Call) RunAndReturn(run func(context.Context, string, bool) error) *UserRepository_UpdateUserActive_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateUserName provides a mock function with given fields: ctx, id, name
-func (_m *UserRepository) UpdateUserName(ctx context.Context, id uuid.UUID, name string) error {
+func (_m *UserRepository) UpdateUserName(ctx context.Context, id string, name string) error {
 	ret := _m.Called(ctx, id, name)
 
 	if len(ret) == 0 {
@@ -422,7 +422,7 @@ func (_m *UserRepository) UpdateUserName(ctx context.Context, id uuid.UUID, name
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) error); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
 		r0 = rf(ctx, id, name)
 	} else {
 		r0 = ret.Error(0)
@@ -438,15 +438,15 @@ type UserRepository_UpdateUserName_Call struct {
 
 // UpdateUserName is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
+//   - id string
 //   - name string
 func (_e *UserRepository_Expecter) UpdateUserName(ctx interface{}, id interface{}, name interface{}) *UserRepository_UpdateUserName_Call {
 	return &UserRepository_UpdateUserName_Call{Call: _e.mock.On("UpdateUserName", ctx, id, name)}
 }
 
-func (_c *UserRepository_UpdateUserName_Call) Run(run func(ctx context.Context, id uuid.UUID, name string)) *UserRepository_UpdateUserName_Call {
+func (_c *UserRepository_UpdateUserName_Call) Run(run func(ctx context.Context, id string, name string)) *UserRepository_UpdateUserName_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(uuid.UUID), args[2].(string))
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
 	})
 	return _c
 }
@@ -456,7 +456,7 @@ func (_c *UserRepository_UpdateUserName_Call) Return(_a0 error) *UserRepository_
 	return _c
 }
 
-func (_c *UserRepository_UpdateUserName_Call) RunAndReturn(run func(context.Context, uuid.UUID, string) error) *UserRepository_UpdateUserName_Call {
+func (_c *UserRepository_UpdateUserName_Call) RunAndReturn(run func(context.Context, string, string) error) *UserRepository_UpdateUserName_Call {
 	_c.Call.Return(run)
 	return _c
 }
