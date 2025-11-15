@@ -14,7 +14,7 @@ import (
 type AddTeamMember struct {
 	UserID   string `json:"user_id"`
 	Username string `json:"username" validate:"required"`
-	IsActive bool   `json:"is_active" `
+	IsActive bool   `json:"is_active"`
 }
 
 type AddTeamRequest struct {
