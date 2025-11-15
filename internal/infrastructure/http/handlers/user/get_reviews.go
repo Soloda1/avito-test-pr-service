@@ -42,7 +42,7 @@ func (h *UserHandler) GetReviews(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := GetReviewsResponse{UserID: req.UserID}
+	resp := GetReviewsResponse{UserID: req.UserID, PullRequests: []PullRequestShort{}}
 	for _, p := range prs {
 		resp.PullRequests = append(resp.PullRequests, PullRequestShort{
 			ID:     p.ID.String(),
