@@ -29,7 +29,7 @@ func (h *UserHandler) GetReviews(w http.ResponseWriter, r *http.Request) {
 
 	userID, err := uuid.Parse(req.UserID)
 	if err != nil {
-		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPStatusToCode(http.StatusBadRequest), utils.ErrInvalidUserID.Error())
+		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPCodeConverter(http.StatusBadRequest), utils.ErrInvalidUserID.Error())
 		return
 	}
 
@@ -38,7 +38,7 @@ func (h *UserHandler) GetReviews(w http.ResponseWriter, r *http.Request) {
 	prs, err := h.prService.ListPRsByAssignee(r.Context(), userID, nil)
 	if err != nil {
 		h.log.Error("GetReviews service failed", slog.String("user_id", req.UserID), slog.Any("err", err))
-		_ = utils.WriteError(w, http.StatusInternalServerError, utils.HTTPStatusToCode(http.StatusInternalServerError), utils.ErrInternal.Error())
+		_ = utils.WriteError(w, http.StatusInternalServerError, utils.HTTPCodeConverter(http.StatusInternalServerError), utils.ErrInternal.Error())
 		return
 	}
 

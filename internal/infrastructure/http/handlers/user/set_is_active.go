@@ -27,7 +27,7 @@ type SetIsActiveResponse struct {
 func (h *UserHandler) SetIsActive(w http.ResponseWriter, r *http.Request) {
 	var req SetIsActiveRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPStatusToCode(http.StatusBadRequest), "invalid json body")
+		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPCodeConverter(http.StatusBadRequest), "invalid json body")
 		return
 	}
 	if err := utils.Validate(req); err != nil {
@@ -36,7 +36,7 @@ func (h *UserHandler) SetIsActive(w http.ResponseWriter, r *http.Request) {
 	}
 	userID, err := uuid.Parse(req.UserID)
 	if err != nil {
-		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPStatusToCode(http.StatusBadRequest), "invalid user_id")
+		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPCodeConverter(http.StatusBadRequest), "invalid user_id")
 		return
 	}
 
