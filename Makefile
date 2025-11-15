@@ -1,0 +1,133 @@
+# Makefile для проекта avito-test-pr-service
+
+APP_NAME=pr-service
+MIGRATOR_NAME=pr-migrator
+BINARY_DIR=bin
+GO_VERSION=1.24.2
+DOCKER_IMAGE=avito-pr-service:latest
+DOCKER_COMPOSE_FILE=docker-compose.yml
+PSQL_CONTAINER=pr-service-db
+DB_USER=postgres
+DB_NAME=prservice
+DB_PORT=5432
+
+# Путь к main файлам
+SERVER_MAIN=./cmd/server/main.go
+MIGRATOR_MAIN=./cmd/migrate/main.go
+
+# Флаги
+LDFLAGS=-s -w
+TEST_FLAGS=-count=1
+RACE_FLAGS=-race
+
+.PHONY: help check-go-version fmt lint build build-migrator run migrate-up migrate-down docker-build up down restart logs db-shell psql test test-race coverage tidy clean generate
+
+help:
+	@echo "Доступные цели:"
+	@echo "  check-go-version    - Проверить установленную версию Go"
+	@echo "  fmt                 - Форматирование кода"
+	@echo "  lint                - Базовая проверка (go vet)"
+	@echo "  build               - Сборка бинарника сервера"
+	@echo "  run                 - Запуск сервера локально (go run)"
+	@echo "  migrate-up          - Применить миграции (go run мигратора)"
+	@echo "  migrate-down        - Откатить миграции (go run мигратора)"
+	@echo "  up                  - Запуск docker-compose инфраструктуры"
+	@echo "  down                - Остановка docker-compose инфраструктуры"
+	@echo "  restart             - Перезапуск контейнера сервиса"
+	@echo "  logs                - Живые логи сервиса"
+	@echo "  db-shell            - Shell в контейнер базы данных"
+	@echo "  psql                - psql подключение к БД"
+	@echo "  test                - Запуск тестов"
+	@echo "  test-race           - Тесты с -race"
+	@echo "  coverage            - Отчёт покрытия (HTML)"
+	@echo "  tidy                - go mod tidy"
+	@echo "  clean               - Очистка бинарников и кешей"
+
+check-go-version:
+	@echo "🔍 Проверка версии Go..."
+	@go version | grep -q "go$(GO_VERSION)" || (echo "❌ Требуется Go $(GO_VERSION)" && exit 1)
+	@echo "✅ Go $(GO_VERSION) найден"
+
+fmt: check-go-version
+	@gofmt -s -w .
+	@go fmt ./...
+	@echo "✅ Форматирование завершено"
+
+lint: check-go-version
+	@echo "🔍 go vet ..."
+	@go vet ./... || exit 1
+	@echo "✅ Линт пройден"
+
+build: check-go-version
+	@echo "🔨 Сборка сервера..."
+	@mkdir -p $(BINARY_DIR)
+	@go build -o $(BINARY_DIR)/$(APP_NAME) -ldflags "$(LDFLAGS)" $(SERVER_MAIN)
+	@echo "✅ Бинарник: $(BINARY_DIR)/$(APP_NAME)"
+
+run: check-go-version
+	@echo "🚀 Запуск сервера (go run)..."
+	@go run $(SERVER_MAIN)
+
+migrate-up: check-go-version
+	@echo "🚀 Применение миграций..."
+	@go run $(MIGRATOR_MAIN) -command up
+
+migrate-down: check-go-version
+	@echo "🔄 Откат миграций..."
+	@go run $(MIGRATOR_MAIN) -command down
+
+
+up:
+	@echo "🚀 docker-compose up -d"
+	@docker compose -f $(DOCKER_COMPOSE_FILE) up -d --build
+	@echo "⏳ Ожидание готовности Postgres..."
+	@docker exec $(PSQL_CONTAINER) pg_isready -U $(DB_USER) -p $(DB_PORT) || true
+
+down:
+	@echo "🛑 docker-compose down"
+	@docker compose -f $(DOCKER_COMPOSE_FILE) down
+
+restart:
+	@echo "🔄 Перезапуск контейнера сервиса..."
+	@docker compose -f $(DOCKER_COMPOSE_FILE) restart pr-service
+
+logs:
+	@echo "📄 Логи сервиса... (Ctrl+C для выхода)"
+	@docker compose -f $(DOCKER_COMPOSE_FILE) logs -f pr-service
+
+db-shell:
+	@echo "🐚 Вход в контейнер базы данных..."
+	@docker exec -it $(PSQL_CONTAINER) sh
+
+psql:
+	@echo "💾 Подключение psql..."
+	@docker exec -it $(PSQL_CONTAINER) psql -U $(DB_USER) -d $(DB_NAME)
+
+test: check-go-version
+	@echo "🧪 Запуск тестов..."
+	@go test $(TEST_FLAGS) ./...
+
+test-race: check-go-version
+	@echo "🧪 Запуск тестов (race)..."
+	@go test $(TEST_FLAGS) $(RACE_FLAGS) ./...
+
+coverage: check-go-version
+	@echo "🧪 Покрытие..."
+	@go test -coverprofile=coverage.out ./...
+	@go tool cover -func=coverage.out | grep -E 'total'
+	@go tool cover -html=coverage.out -o coverage.html
+	@echo "✅ coverage.html готов"
+
+ tidy: check-go-version
+	@echo "📦 go mod tidy"
+	@go mod tidy
+	@echo "✅ Модули обновлены"
+
+clean:
+	@echo "🧹 Очистка..."
+	@go clean -cache -testcache -modcache
+	@rm -rf $(BINARY_DIR)
+	@rm -f coverage.out coverage.html
+	@echo "✅ Очистка завершена"
+
+
