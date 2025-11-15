@@ -24,10 +24,14 @@ func (h *PRHandler) MergePR(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := utils.Validate(req); err != nil {
-		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPCodeConverter(http.StatusBadRequest), utils.ErrValidationFailed.Error())
+		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPCodeConverter(http.StatusBadRequest), err.Error())
 		return
 	}
 	prID := req.PullRequestID
+	if prID == "" {
+		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPCodeConverter(http.StatusBadRequest), utils.ErrInvalidArgument.Error())
+		return
+	}
 
 	h.log.Info("MergePR request", slog.String("pr_id", prID))
 
@@ -35,7 +39,7 @@ func (h *PRHandler) MergePR(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, utils.ErrPRNotFound):
-			_ = utils.WriteError(w, http.StatusNotFound, utils.HTTPCodeConverter(http.StatusNotFound), utils.ErrPRNotFound.Error())
+			_ = utils.WriteError(w, http.StatusNotFound, utils.HTTPCodeConverter(http.StatusNotFound), err.Error())
 			return
 		default:
 			h.log.Error("MergePR failed", slog.Any("err", err), slog.String("pr_id", prID))

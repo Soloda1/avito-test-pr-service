@@ -26,7 +26,7 @@ func (h *PRHandler) CreatePR(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := utils.Validate(req); err != nil {
-		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPCodeConverter(http.StatusBadRequest), utils.ErrValidationFailed.Error())
+		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPCodeConverter(http.StatusBadRequest), err.Error())
 		return
 	}
 	prID := req.PullRequestID
@@ -43,9 +43,9 @@ func (h *PRHandler) CreatePR(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, utils.ErrPRExists):
-			_ = utils.WriteError(w, http.StatusConflict, utils.HTTPCodeConverter(http.StatusConflict), utils.ErrPRExists.Error())
+			_ = utils.WriteError(w, http.StatusConflict, utils.HTTPCodeConverter(http.StatusConflict, err), err.Error())
 			return
-		case errors.Is(err, utils.ErrUserNotFound), errors.Is(err, utils.ErrTeamNotFound):
+		case errors.Is(err, utils.ErrUserNotFound) || errors.Is(err, utils.ErrTeamNotFound):
 			_ = utils.WriteError(w, http.StatusNotFound, utils.HTTPCodeConverter(http.StatusNotFound), err.Error())
 			return
 		default:
