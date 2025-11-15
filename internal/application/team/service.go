@@ -257,7 +257,11 @@ func (s *Service) processTeamMember(ctx context.Context, userRepo user_port.User
 }
 
 func (s *Service) updateExistingUser(ctx context.Context, userRepo user_port.UserRepository, existing *models.User, spec *models.User) (*models.User, error) {
-	updatedUser := existing
+	updatedUser := &models.User{
+		ID:       existing.ID,
+		Name:     existing.Name,
+		IsActive: existing.IsActive,
+	}
 
 	if spec.IsActive != existing.IsActive {
 		if err := userRepo.UpdateUserActive(ctx, existing.ID, spec.IsActive); err != nil {
