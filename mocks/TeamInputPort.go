@@ -260,6 +260,65 @@ func (_c *TeamInputPort_GetTeam_Call) RunAndReturn(run func(context.Context, uui
 	return _c
 }
 
+// GetTeamByName provides a mock function with given fields: ctx, name
+func (_m *TeamInputPort) GetTeamByName(ctx context.Context, name string) (*models.Team, error) {
+	ret := _m.Called(ctx, name)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetTeamByName")
+	}
+
+	var r0 *models.Team
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*models.Team, error)); ok {
+		return rf(ctx, name)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *models.Team); ok {
+		r0 = rf(ctx, name)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.Team)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, name)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// TeamInputPort_GetTeamByName_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetTeamByName'
+type TeamInputPort_GetTeamByName_Call struct {
+	*mock.Call
+}
+
+// GetTeamByName is a helper method to define mock.On call
+//   - ctx context.Context
+//   - name string
+func (_e *TeamInputPort_Expecter) GetTeamByName(ctx interface{}, name interface{}) *TeamInputPort_GetTeamByName_Call {
+	return &TeamInputPort_GetTeamByName_Call{Call: _e.mock.On("GetTeamByName", ctx, name)}
+}
+
+func (_c *TeamInputPort_GetTeamByName_Call) Run(run func(ctx context.Context, name string)) *TeamInputPort_GetTeamByName_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *TeamInputPort_GetTeamByName_Call) Return(_a0 *models.Team, _a1 error) *TeamInputPort_GetTeamByName_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *TeamInputPort_GetTeamByName_Call) RunAndReturn(run func(context.Context, string) (*models.Team, error)) *TeamInputPort_GetTeamByName_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListTeams provides a mock function with given fields: ctx
 func (_m *TeamInputPort) ListTeams(ctx context.Context) ([]*models.Team, error) {
 	ret := _m.Called(ctx)
