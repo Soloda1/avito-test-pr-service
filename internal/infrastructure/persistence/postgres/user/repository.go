@@ -185,3 +185,64 @@ func (r *UserRepository) ListActiveMembersByTeamID(ctx context.Context, teamID u
 	}
 	return ids, nil
 }
+
+func (r *UserRepository) UpdateUserName(ctx context.Context, id uuid.UUID, name string) error {
+	const q = `
+		UPDATE users
+		SET name = @name,
+			updated_at = now()
+		WHERE id = @id
+		RETURNING id;
+	`
+	row := r.querier.QueryRow(ctx, q, pgx.NamedArgs{"id": id, "name": name})
+	var out uuid.UUID
+	if err := row.Scan(&out); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return utils.ErrUserNotFound
+		}
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			r.log.Error("UpdateUserName pg error", "code", pgErr.Code, "constraint", pgErr.ConstraintName, "user_id", id, "err", pgErr)
+		}
+		r.log.Error("UpdateUserName failed", "user_id", id, "err", err)
+		return err
+	}
+	return nil
+}
+
+func (r *UserRepository) ListMembersByTeamID(ctx context.Context, teamID uuid.UUID) ([]*models.User, error) {
+	const q = `
+		SELECT u.id, u.name, u.is_active, u.created_at, u.updated_at
+		FROM users u
+		JOIN team_members tm ON u.id = tm.user_id
+		WHERE tm.team_id = @team_id;
+	`
+	rows, err := r.querier.Query(ctx, q, pgx.NamedArgs{"team_id": teamID})
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			r.log.Error("ListMembersByTeamID pg query error", "code", pgErr.Code, "constraint", pgErr.ConstraintName, "team_id", teamID, "err", pgErr)
+		}
+		r.log.Error("ListMembersByTeamID query failed", "team_id", teamID, "err", err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	var res []*models.User
+	for rows.Next() {
+		var u models.User
+		if err := rows.Scan(&u.ID, &u.Name, &u.IsActive, &u.CreatedAt, &u.UpdatedAt); err != nil {
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) {
+				r.log.Error("ListMembersByTeamID pg scan error", "code", pgErr.Code, "constraint", pgErr.ConstraintName, "team_id", teamID, "err", pgErr)
+			}
+			r.log.Error("ListMembersByTeamID scan failed", "err", err)
+			return nil, err
+		}
+		res = append(res, &u)
+	}
+	if rows.Err() != nil {
+		return nil, rows.Err()
+	}
+	return res, nil
+}

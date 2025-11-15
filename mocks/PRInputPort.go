@@ -25,9 +25,9 @@ func (_m *PRInputPort) EXPECT() *PRInputPort_Expecter {
 	return &PRInputPort_Expecter{mock: &_m.Mock}
 }
 
-// CreatePR provides a mock function with given fields: ctx, authorID, title
-func (_m *PRInputPort) CreatePR(ctx context.Context, authorID uuid.UUID, title string) (*models.PullRequest, error) {
-	ret := _m.Called(ctx, authorID, title)
+// CreatePR provides a mock function with given fields: ctx, prID, authorID, title
+func (_m *PRInputPort) CreatePR(ctx context.Context, prID string, authorID uuid.UUID, title string) (*models.PullRequest, error) {
+	ret := _m.Called(ctx, prID, authorID, title)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreatePR")
@@ -35,19 +35,19 @@ func (_m *PRInputPort) CreatePR(ctx context.Context, authorID uuid.UUID, title s
 
 	var r0 *models.PullRequest
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) (*models.PullRequest, error)); ok {
-		return rf(ctx, authorID, title)
+	if rf, ok := ret.Get(0).(func(context.Context, string, uuid.UUID, string) (*models.PullRequest, error)); ok {
+		return rf(ctx, prID, authorID, title)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) *models.PullRequest); ok {
-		r0 = rf(ctx, authorID, title)
+	if rf, ok := ret.Get(0).(func(context.Context, string, uuid.UUID, string) *models.PullRequest); ok {
+		r0 = rf(ctx, prID, authorID, title)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*models.PullRequest)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID, string) error); ok {
-		r1 = rf(ctx, authorID, title)
+	if rf, ok := ret.Get(1).(func(context.Context, string, uuid.UUID, string) error); ok {
+		r1 = rf(ctx, prID, authorID, title)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -62,15 +62,16 @@ type PRInputPort_CreatePR_Call struct {
 
 // CreatePR is a helper method to define mock.On call
 //   - ctx context.Context
+//   - prID string
 //   - authorID uuid.UUID
 //   - title string
-func (_e *PRInputPort_Expecter) CreatePR(ctx interface{}, authorID interface{}, title interface{}) *PRInputPort_CreatePR_Call {
-	return &PRInputPort_CreatePR_Call{Call: _e.mock.On("CreatePR", ctx, authorID, title)}
+func (_e *PRInputPort_Expecter) CreatePR(ctx interface{}, prID interface{}, authorID interface{}, title interface{}) *PRInputPort_CreatePR_Call {
+	return &PRInputPort_CreatePR_Call{Call: _e.mock.On("CreatePR", ctx, prID, authorID, title)}
 }
 
-func (_c *PRInputPort_CreatePR_Call) Run(run func(ctx context.Context, authorID uuid.UUID, title string)) *PRInputPort_CreatePR_Call {
+func (_c *PRInputPort_CreatePR_Call) Run(run func(ctx context.Context, prID string, authorID uuid.UUID, title string)) *PRInputPort_CreatePR_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(uuid.UUID), args[2].(string))
+		run(args[0].(context.Context), args[1].(string), args[2].(uuid.UUID), args[3].(string))
 	})
 	return _c
 }
@@ -80,13 +81,13 @@ func (_c *PRInputPort_CreatePR_Call) Return(_a0 *models.PullRequest, _a1 error) 
 	return _c
 }
 
-func (_c *PRInputPort_CreatePR_Call) RunAndReturn(run func(context.Context, uuid.UUID, string) (*models.PullRequest, error)) *PRInputPort_CreatePR_Call {
+func (_c *PRInputPort_CreatePR_Call) RunAndReturn(run func(context.Context, string, uuid.UUID, string) (*models.PullRequest, error)) *PRInputPort_CreatePR_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetPR provides a mock function with given fields: ctx, prID
-func (_m *PRInputPort) GetPR(ctx context.Context, prID uuid.UUID) (*models.PullRequest, error) {
+func (_m *PRInputPort) GetPR(ctx context.Context, prID string) (*models.PullRequest, error) {
 	ret := _m.Called(ctx, prID)
 
 	if len(ret) == 0 {
@@ -95,10 +96,10 @@ func (_m *PRInputPort) GetPR(ctx context.Context, prID uuid.UUID) (*models.PullR
 
 	var r0 *models.PullRequest
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*models.PullRequest, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*models.PullRequest, error)); ok {
 		return rf(ctx, prID)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) *models.PullRequest); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string) *models.PullRequest); ok {
 		r0 = rf(ctx, prID)
 	} else {
 		if ret.Get(0) != nil {
@@ -106,7 +107,7 @@ func (_m *PRInputPort) GetPR(ctx context.Context, prID uuid.UUID) (*models.PullR
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
 		r1 = rf(ctx, prID)
 	} else {
 		r1 = ret.Error(1)
@@ -122,14 +123,14 @@ type PRInputPort_GetPR_Call struct {
 
 // GetPR is a helper method to define mock.On call
 //   - ctx context.Context
-//   - prID uuid.UUID
+//   - prID string
 func (_e *PRInputPort_Expecter) GetPR(ctx interface{}, prID interface{}) *PRInputPort_GetPR_Call {
 	return &PRInputPort_GetPR_Call{Call: _e.mock.On("GetPR", ctx, prID)}
 }
 
-func (_c *PRInputPort_GetPR_Call) Run(run func(ctx context.Context, prID uuid.UUID)) *PRInputPort_GetPR_Call {
+func (_c *PRInputPort_GetPR_Call) Run(run func(ctx context.Context, prID string)) *PRInputPort_GetPR_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(uuid.UUID))
+		run(args[0].(context.Context), args[1].(string))
 	})
 	return _c
 }
@@ -139,7 +140,7 @@ func (_c *PRInputPort_GetPR_Call) Return(_a0 *models.PullRequest, _a1 error) *PR
 	return _c
 }
 
-func (_c *PRInputPort_GetPR_Call) RunAndReturn(run func(context.Context, uuid.UUID) (*models.PullRequest, error)) *PRInputPort_GetPR_Call {
+func (_c *PRInputPort_GetPR_Call) RunAndReturn(run func(context.Context, string) (*models.PullRequest, error)) *PRInputPort_GetPR_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -205,7 +206,7 @@ func (_c *PRInputPort_ListPRsByAssignee_Call) RunAndReturn(run func(context.Cont
 }
 
 // MergePR provides a mock function with given fields: ctx, prID
-func (_m *PRInputPort) MergePR(ctx context.Context, prID uuid.UUID) (*models.PullRequest, error) {
+func (_m *PRInputPort) MergePR(ctx context.Context, prID string) (*models.PullRequest, error) {
 	ret := _m.Called(ctx, prID)
 
 	if len(ret) == 0 {
@@ -214,10 +215,10 @@ func (_m *PRInputPort) MergePR(ctx context.Context, prID uuid.UUID) (*models.Pul
 
 	var r0 *models.PullRequest
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*models.PullRequest, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*models.PullRequest, error)); ok {
 		return rf(ctx, prID)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) *models.PullRequest); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string) *models.PullRequest); ok {
 		r0 = rf(ctx, prID)
 	} else {
 		if ret.Get(0) != nil {
@@ -225,7 +226,7 @@ func (_m *PRInputPort) MergePR(ctx context.Context, prID uuid.UUID) (*models.Pul
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
 		r1 = rf(ctx, prID)
 	} else {
 		r1 = ret.Error(1)
@@ -241,14 +242,14 @@ type PRInputPort_MergePR_Call struct {
 
 // MergePR is a helper method to define mock.On call
 //   - ctx context.Context
-//   - prID uuid.UUID
+//   - prID string
 func (_e *PRInputPort_Expecter) MergePR(ctx interface{}, prID interface{}) *PRInputPort_MergePR_Call {
 	return &PRInputPort_MergePR_Call{Call: _e.mock.On("MergePR", ctx, prID)}
 }
 
-func (_c *PRInputPort_MergePR_Call) Run(run func(ctx context.Context, prID uuid.UUID)) *PRInputPort_MergePR_Call {
+func (_c *PRInputPort_MergePR_Call) Run(run func(ctx context.Context, prID string)) *PRInputPort_MergePR_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(uuid.UUID))
+		run(args[0].(context.Context), args[1].(string))
 	})
 	return _c
 }
@@ -258,13 +259,13 @@ func (_c *PRInputPort_MergePR_Call) Return(_a0 *models.PullRequest, _a1 error) *
 	return _c
 }
 
-func (_c *PRInputPort_MergePR_Call) RunAndReturn(run func(context.Context, uuid.UUID) (*models.PullRequest, error)) *PRInputPort_MergePR_Call {
+func (_c *PRInputPort_MergePR_Call) RunAndReturn(run func(context.Context, string) (*models.PullRequest, error)) *PRInputPort_MergePR_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ReassignReviewer provides a mock function with given fields: ctx, prID, oldReviewerID
-func (_m *PRInputPort) ReassignReviewer(ctx context.Context, prID uuid.UUID, oldReviewerID uuid.UUID) (*models.PullRequest, error) {
+func (_m *PRInputPort) ReassignReviewer(ctx context.Context, prID string, oldReviewerID uuid.UUID) (*models.PullRequest, error) {
 	ret := _m.Called(ctx, prID, oldReviewerID)
 
 	if len(ret) == 0 {
@@ -273,10 +274,10 @@ func (_m *PRInputPort) ReassignReviewer(ctx context.Context, prID uuid.UUID, old
 
 	var r0 *models.PullRequest
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) (*models.PullRequest, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string, uuid.UUID) (*models.PullRequest, error)); ok {
 		return rf(ctx, prID, oldReviewerID)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) *models.PullRequest); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string, uuid.UUID) *models.PullRequest); ok {
 		r0 = rf(ctx, prID, oldReviewerID)
 	} else {
 		if ret.Get(0) != nil {
@@ -284,7 +285,7 @@ func (_m *PRInputPort) ReassignReviewer(ctx context.Context, prID uuid.UUID, old
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, string, uuid.UUID) error); ok {
 		r1 = rf(ctx, prID, oldReviewerID)
 	} else {
 		r1 = ret.Error(1)
@@ -300,15 +301,15 @@ type PRInputPort_ReassignReviewer_Call struct {
 
 // ReassignReviewer is a helper method to define mock.On call
 //   - ctx context.Context
-//   - prID uuid.UUID
+//   - prID string
 //   - oldReviewerID uuid.UUID
 func (_e *PRInputPort_Expecter) ReassignReviewer(ctx interface{}, prID interface{}, oldReviewerID interface{}) *PRInputPort_ReassignReviewer_Call {
 	return &PRInputPort_ReassignReviewer_Call{Call: _e.mock.On("ReassignReviewer", ctx, prID, oldReviewerID)}
 }
 
-func (_c *PRInputPort_ReassignReviewer_Call) Run(run func(ctx context.Context, prID uuid.UUID, oldReviewerID uuid.UUID)) *PRInputPort_ReassignReviewer_Call {
+func (_c *PRInputPort_ReassignReviewer_Call) Run(run func(ctx context.Context, prID string, oldReviewerID uuid.UUID)) *PRInputPort_ReassignReviewer_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(uuid.UUID), args[2].(uuid.UUID))
+		run(args[0].(context.Context), args[1].(string), args[2].(uuid.UUID))
 	})
 	return _c
 }
@@ -318,7 +319,7 @@ func (_c *PRInputPort_ReassignReviewer_Call) Return(_a0 *models.PullRequest, _a1
 	return _c
 }
 
-func (_c *PRInputPort_ReassignReviewer_Call) RunAndReturn(run func(context.Context, uuid.UUID, uuid.UUID) (*models.PullRequest, error)) *PRInputPort_ReassignReviewer_Call {
+func (_c *PRInputPort_ReassignReviewer_Call) RunAndReturn(run func(context.Context, string, uuid.UUID) (*models.PullRequest, error)) *PRInputPort_ReassignReviewer_Call {
 	_c.Call.Return(run)
 	return _c
 }

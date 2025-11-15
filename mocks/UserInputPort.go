@@ -144,6 +144,122 @@ func (_c *UserInputPort_GetUser_Call) RunAndReturn(run func(context.Context, uui
 	return _c
 }
 
+// GetUserTeamName provides a mock function with given fields: ctx, id
+func (_m *UserInputPort) GetUserTeamName(ctx context.Context, id uuid.UUID) (string, error) {
+	ret := _m.Called(ctx, id)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetUserTeamName")
+	}
+
+	var r0 string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) (string, error)); ok {
+		return rf(ctx, id)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) string); ok {
+		r0 = rf(ctx, id)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = rf(ctx, id)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// UserInputPort_GetUserTeamName_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetUserTeamName'
+type UserInputPort_GetUserTeamName_Call struct {
+	*mock.Call
+}
+
+// GetUserTeamName is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id uuid.UUID
+func (_e *UserInputPort_Expecter) GetUserTeamName(ctx interface{}, id interface{}) *UserInputPort_GetUserTeamName_Call {
+	return &UserInputPort_GetUserTeamName_Call{Call: _e.mock.On("GetUserTeamName", ctx, id)}
+}
+
+func (_c *UserInputPort_GetUserTeamName_Call) Run(run func(ctx context.Context, id uuid.UUID)) *UserInputPort_GetUserTeamName_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uuid.UUID))
+	})
+	return _c
+}
+
+func (_c *UserInputPort_GetUserTeamName_Call) Return(_a0 string, _a1 error) *UserInputPort_GetUserTeamName_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *UserInputPort_GetUserTeamName_Call) RunAndReturn(run func(context.Context, uuid.UUID) (string, error)) *UserInputPort_GetUserTeamName_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListMembersByTeamID provides a mock function with given fields: ctx, teamID
+func (_m *UserInputPort) ListMembersByTeamID(ctx context.Context, teamID uuid.UUID) ([]*models.User, error) {
+	ret := _m.Called(ctx, teamID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListMembersByTeamID")
+	}
+
+	var r0 []*models.User
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]*models.User, error)); ok {
+		return rf(ctx, teamID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) []*models.User); ok {
+		r0 = rf(ctx, teamID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*models.User)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = rf(ctx, teamID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// UserInputPort_ListMembersByTeamID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListMembersByTeamID'
+type UserInputPort_ListMembersByTeamID_Call struct {
+	*mock.Call
+}
+
+// ListMembersByTeamID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - teamID uuid.UUID
+func (_e *UserInputPort_Expecter) ListMembersByTeamID(ctx interface{}, teamID interface{}) *UserInputPort_ListMembersByTeamID_Call {
+	return &UserInputPort_ListMembersByTeamID_Call{Call: _e.mock.On("ListMembersByTeamID", ctx, teamID)}
+}
+
+func (_c *UserInputPort_ListMembersByTeamID_Call) Run(run func(ctx context.Context, teamID uuid.UUID)) *UserInputPort_ListMembersByTeamID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uuid.UUID))
+	})
+	return _c
+}
+
+func (_c *UserInputPort_ListMembersByTeamID_Call) Return(_a0 []*models.User, _a1 error) *UserInputPort_ListMembersByTeamID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *UserInputPort_ListMembersByTeamID_Call) RunAndReturn(run func(context.Context, uuid.UUID) ([]*models.User, error)) *UserInputPort_ListMembersByTeamID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListUsers provides a mock function with given fields: ctx
 func (_m *UserInputPort) ListUsers(ctx context.Context) ([]*models.User, error) {
 	ret := _m.Called(ctx)
@@ -246,6 +362,54 @@ func (_c *UserInputPort_UpdateUserActive_Call) Return(_a0 error) *UserInputPort_
 }
 
 func (_c *UserInputPort_UpdateUserActive_Call) RunAndReturn(run func(context.Context, uuid.UUID, bool) error) *UserInputPort_UpdateUserActive_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateUserName provides a mock function with given fields: ctx, id, name
+func (_m *UserInputPort) UpdateUserName(ctx context.Context, id uuid.UUID, name string) error {
+	ret := _m.Called(ctx, id, name)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateUserName")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) error); ok {
+		r0 = rf(ctx, id, name)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// UserInputPort_UpdateUserName_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateUserName'
+type UserInputPort_UpdateUserName_Call struct {
+	*mock.Call
+}
+
+// UpdateUserName is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id uuid.UUID
+//   - name string
+func (_e *UserInputPort_Expecter) UpdateUserName(ctx interface{}, id interface{}, name interface{}) *UserInputPort_UpdateUserName_Call {
+	return &UserInputPort_UpdateUserName_Call{Call: _e.mock.On("UpdateUserName", ctx, id, name)}
+}
+
+func (_c *UserInputPort_UpdateUserName_Call) Run(run func(ctx context.Context, id uuid.UUID, name string)) *UserInputPort_UpdateUserName_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uuid.UUID), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *UserInputPort_UpdateUserName_Call) Return(_a0 error) *UserInputPort_UpdateUserName_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *UserInputPort_UpdateUserName_Call) RunAndReturn(run func(context.Context, uuid.UUID, string) error) *UserInputPort_UpdateUserName_Call {
 	_c.Call.Return(run)
 	return _c
 }

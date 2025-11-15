@@ -358,3 +358,186 @@ func TestUserService_ListUsers(t *testing.T) {
 		})
 	}
 }
+
+func TestUserService_GetUserTeamName(t *testing.T) {
+	ctx := context.Background()
+	uid := uuid.New()
+	teamID := uuid.New()
+
+	tests := []struct {
+		name      string
+		userID    uuid.UUID
+		mockSetup func(uow *mocks.UnitOfWork, tx *mocks.Transaction, userRepo *mocks.UserRepository, teamRepo *mocks.TeamRepository)
+		wantName  string
+		wantErr   error
+		useIs     bool
+	}{
+		{
+			name:   "success returns team name",
+			userID: uid,
+			mockSetup: func(uow *mocks.UnitOfWork, tx *mocks.Transaction, userRepo *mocks.UserRepository, teamRepo *mocks.TeamRepository) {
+				uow.EXPECT().Begin(ctx).Return(tx, nil)
+				tx.EXPECT().UserRepository().Return(userRepo)
+				userRepo.EXPECT().GetTeamIDByUserID(ctx, uid).Return(teamID, nil)
+				tx.EXPECT().TeamRepository().Return(teamRepo)
+				teamRepo.EXPECT().GetTeamByID(ctx, teamID).Return(&models.Team{ID: teamID, Name: "core"}, nil)
+				tx.EXPECT().Rollback(ctx).Return(nil)
+			},
+			wantName: "core",
+		},
+		{
+			name:   "invalid id",
+			userID: uuid.Nil,
+			mockSetup: func(uow *mocks.UnitOfWork, tx *mocks.Transaction, userRepo *mocks.UserRepository, teamRepo *mocks.TeamRepository) {
+			},
+			wantErr: utils.ErrInvalidArgument,
+			useIs:   true,
+		},
+		{
+			name:   "begin fails",
+			userID: uid,
+			mockSetup: func(uow *mocks.UnitOfWork, tx *mocks.Transaction, userRepo *mocks.UserRepository, teamRepo *mocks.TeamRepository) {
+				uow.EXPECT().Begin(ctx).Return(nil, errors.New("begin fail"))
+			},
+			wantErr: errors.New("begin fail"),
+		},
+		{
+			name:   "no team returns empty name",
+			userID: uid,
+			mockSetup: func(uow *mocks.UnitOfWork, tx *mocks.Transaction, userRepo *mocks.UserRepository, teamRepo *mocks.TeamRepository) {
+				uow.EXPECT().Begin(ctx).Return(tx, nil)
+				tx.EXPECT().UserRepository().Return(userRepo)
+				userRepo.EXPECT().GetTeamIDByUserID(ctx, uid).Return(uuid.Nil, utils.ErrUserNoTeam)
+				tx.EXPECT().Rollback(ctx).Return(nil)
+			},
+			wantName: "",
+		},
+		{
+			name:   "get team id fails",
+			userID: uid,
+			mockSetup: func(uow *mocks.UnitOfWork, tx *mocks.Transaction, userRepo *mocks.UserRepository, teamRepo *mocks.TeamRepository) {
+				uow.EXPECT().Begin(ctx).Return(tx, nil)
+				tx.EXPECT().UserRepository().Return(userRepo)
+				userRepo.EXPECT().GetTeamIDByUserID(ctx, uid).Return(uuid.Nil, errors.New("db fail"))
+				tx.EXPECT().Rollback(ctx).Return(nil)
+			},
+			wantErr: errors.New("db fail"),
+		},
+		{
+			name:   "get team by id fails",
+			userID: uid,
+			mockSetup: func(uow *mocks.UnitOfWork, tx *mocks.Transaction, userRepo *mocks.UserRepository, teamRepo *mocks.TeamRepository) {
+				uow.EXPECT().Begin(ctx).Return(tx, nil)
+				tx.EXPECT().UserRepository().Return(userRepo)
+				userRepo.EXPECT().GetTeamIDByUserID(ctx, uid).Return(teamID, nil)
+				tx.EXPECT().TeamRepository().Return(teamRepo)
+				teamRepo.EXPECT().GetTeamByID(ctx, teamID).Return(nil, errors.New("not found"))
+				tx.EXPECT().Rollback(ctx).Return(nil)
+			},
+			wantErr: errors.New("not found"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockUOW := mocks.NewUnitOfWork(t)
+			mockTx := mocks.NewTransaction(t)
+			mockUserRepo := mocks.NewUserRepository(t)
+			mockTeamRepo := mocks.NewTeamRepository(t)
+			log := logger.New("dev")
+			if tt.mockSetup != nil {
+				tt.mockSetup(mockUOW, mockTx, mockUserRepo, mockTeamRepo)
+			}
+			svc := app.NewService(mockUOW, log)
+			name, err := svc.GetUserTeamName(ctx, tt.userID)
+			if tt.wantErr != nil {
+				require.Error(t, err)
+				if tt.useIs {
+					require.ErrorIs(t, err, tt.wantErr)
+				} else {
+					require.EqualError(t, err, tt.wantErr.Error())
+				}
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tt.wantName, name)
+			}
+		})
+	}
+}
+
+func TestUserService_ListMembersByTeamID(t *testing.T) {
+	ctx := context.Background()
+	teamID := uuid.New()
+	users := []*models.User{{ID: uuid.New(), Name: "alice", IsActive: true}, {ID: uuid.New(), Name: "bob", IsActive: false}}
+
+	tests := []struct {
+		name    string
+		teamID  uuid.UUID
+		setup   func(uow *mocks.UnitOfWork, tx *mocks.Transaction, repo *mocks.UserRepository)
+		want    []*models.User
+		wantErr error
+	}{
+		{
+			name:   "happy",
+			teamID: teamID,
+			setup: func(uow *mocks.UnitOfWork, tx *mocks.Transaction, repo *mocks.UserRepository) {
+				uow.EXPECT().Begin(ctx).Return(tx, nil)
+				tx.EXPECT().UserRepository().Return(repo)
+				repo.EXPECT().ListMembersByTeamID(ctx, teamID).Return(users, nil)
+				tx.EXPECT().Rollback(ctx).Return(nil)
+			},
+			want: users,
+		},
+		{
+			name:    "invalid arg",
+			teamID:  uuid.Nil,
+			setup:   func(uow *mocks.UnitOfWork, tx *mocks.Transaction, repo *mocks.UserRepository) {},
+			wantErr: utils.ErrInvalidArgument,
+		},
+		{
+			name:   "begin fail",
+			teamID: teamID,
+			setup: func(uow *mocks.UnitOfWork, tx *mocks.Transaction, repo *mocks.UserRepository) {
+				uow.EXPECT().Begin(ctx).Return(nil, errors.New("begin fail"))
+			},
+			wantErr: errors.New("begin fail"),
+		},
+		{
+			name:   "repo fail",
+			teamID: teamID,
+			setup: func(uow *mocks.UnitOfWork, tx *mocks.Transaction, repo *mocks.UserRepository) {
+				uow.EXPECT().Begin(ctx).Return(tx, nil)
+				tx.EXPECT().UserRepository().Return(repo)
+				repo.EXPECT().ListMembersByTeamID(ctx, teamID).Return(nil, errors.New("db fail"))
+				tx.EXPECT().Rollback(ctx).Return(nil)
+			},
+			wantErr: errors.New("db fail"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockUOW := mocks.NewUnitOfWork(t)
+			mockTx := mocks.NewTransaction(t)
+			mockRepo := mocks.NewUserRepository(t)
+			log := logger.New("dev")
+			if tt.setup != nil {
+				tt.setup(mockUOW, mockTx, mockRepo)
+			}
+			svc := app.NewService(mockUOW, log)
+			got, err := svc.ListMembersByTeamID(ctx, tt.teamID)
+			if tt.wantErr != nil {
+				require.Error(t, err)
+				if errors.Is(tt.wantErr, utils.ErrInvalidArgument) {
+					require.ErrorIs(t, err, tt.wantErr)
+				} else {
+					require.EqualError(t, err, tt.wantErr.Error())
+				}
+				require.Nil(t, got)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tt.want, got)
+		})
+	}
+}

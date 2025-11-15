@@ -78,6 +78,24 @@ func (r *TeamRepository) GetTeamByID(ctx context.Context, id uuid.UUID) (*models
 	return &t, nil
 }
 
+func (r *TeamRepository) GetTeamByName(ctx context.Context, name string) (*models.Team, error) {
+	const q = `
+		SELECT id, name, created_at, updated_at
+		FROM teams
+		WHERE name = @name;
+	`
+	row := r.querier.QueryRow(ctx, q, pgx.NamedArgs{"name": name})
+	var t models.Team
+	if err := row.Scan(&t.ID, &t.Name, &t.CreatedAt, &t.UpdatedAt); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, utils.ErrTeamNotFound
+		}
+		r.log.Error("GetTeamByName failed", "team_name", name, "err", err)
+		return nil, err
+	}
+	return &t, nil
+}
+
 func (r *TeamRepository) ListTeams(ctx context.Context) ([]*models.Team, error) {
 	const q = `
 		SELECT id, name, created_at, updated_at

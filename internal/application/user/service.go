@@ -7,6 +7,7 @@ import (
 	uow "avito-test-pr-service/internal/domain/ports/output/uow"
 	"avito-test-pr-service/internal/utils"
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
 )
@@ -142,5 +143,90 @@ func (s *Service) ListUsers(ctx context.Context) ([]*models.User, error) {
 		return nil, err
 	}
 	s.log.Info("ListUsers success", "count", len(users))
+	return users, nil
+}
+
+func (s *Service) GetUserTeamName(ctx context.Context, id uuid.UUID) (string, error) {
+	if id == uuid.Nil {
+		s.log.Error("GetUserTeamName invalid argument", "err", utils.ErrInvalidArgument, "user_id", id)
+		return "", utils.ErrInvalidArgument
+	}
+
+	tx, err := s.uow.Begin(ctx)
+	if err != nil {
+		s.log.Error("GetUserTeamName begin tx failed", "err", err, "user_id", id)
+		return "", err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	userRepo := tx.UserRepository()
+	teamID, err := userRepo.GetTeamIDByUserID(ctx, id)
+	if err != nil {
+		if errors.Is(err, utils.ErrUserNoTeam) {
+			return "", nil
+		}
+		s.log.Error("GetUserTeamName get team id failed", "err", err, "user_id", id)
+		return "", err
+	}
+
+	teamRepo := tx.TeamRepository()
+	team, err := teamRepo.GetTeamByID(ctx, teamID)
+	if err != nil {
+		s.log.Error("GetUserTeamName get team failed", "err", err, "user_id", id, "team_id", teamID)
+		return "", err
+	}
+	return team.Name, nil
+}
+
+func (s *Service) UpdateUserName(ctx context.Context, id uuid.UUID, name string) error {
+	if id == uuid.Nil || name == "" {
+		s.log.Error("UpdateUserName invalid argument", "err", utils.ErrInvalidArgument, "user_id", id, "name", name)
+		return utils.ErrInvalidArgument
+	}
+	tx, err := s.uow.Begin(ctx)
+	if err != nil {
+		s.log.Error("UpdateUserName begin tx failed", "err", err, "user_id", id)
+		return err
+	}
+	var commit bool
+	defer func() {
+		if !commit {
+			_ = tx.Rollback(ctx)
+		}
+	}()
+
+	repo := tx.UserRepository()
+	if err := repo.UpdateUserName(ctx, id, name); err != nil {
+		s.log.Error("UpdateUserName repo failed", "err", err, "user_id", id)
+		return err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		s.log.Error("UpdateUserName commit failed", "err", err, "user_id", id)
+		return err
+	}
+	commit = true
+	s.log.Info("UpdateUserName success", "user_id", id, "name", name)
+	return nil
+}
+
+func (s *Service) ListMembersByTeamID(ctx context.Context, teamID uuid.UUID) ([]*models.User, error) {
+	if teamID == uuid.Nil {
+		s.log.Error("ListMembersByTeamID invalid argument", "err", utils.ErrInvalidArgument, "team_id", teamID)
+		return nil, utils.ErrInvalidArgument
+	}
+	tx, err := s.uow.Begin(ctx)
+	if err != nil {
+		s.log.Error("ListMembersByTeamID begin tx failed", "err", err, "team_id", teamID)
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	repo := tx.UserRepository()
+	users, err := repo.ListMembersByTeamID(ctx, teamID)
+	if err != nil {
+		s.log.Error("ListMembersByTeamID repo failed", "err", err, "team_id", teamID)
+		return nil, err
+	}
+	s.log.Info("ListMembersByTeamID success", "team_id", teamID, "count", len(users))
 	return users, nil
 }

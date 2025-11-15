@@ -25,11 +25,8 @@ func NewPRRepository(querier postgres.Querier, log ports.Logger) pr_port.PRRepos
 }
 
 func (r *PRRepository) CreatePR(ctx context.Context, pr *models.PullRequest) error {
-	if pr.Title == "" || pr.AuthorID == uuid.Nil {
+	if pr.Title == "" || pr.AuthorID == uuid.Nil || pr.ID == "" {
 		return utils.ErrInvalidArgument
-	}
-	if pr.ID == uuid.Nil {
-		pr.ID = uuid.New()
 	}
 	const insertPR = `
 		INSERT INTO prs (id, title, author_id, status, created_at, updated_at)
@@ -56,7 +53,7 @@ func (r *PRRepository) CreatePR(ctx context.Context, pr *models.PullRequest) err
 	return nil
 }
 
-func (r *PRRepository) loadReviewers(ctx context.Context, prID uuid.UUID) ([]uuid.UUID, error) {
+func (r *PRRepository) loadReviewers(ctx context.Context, prID string) ([]uuid.UUID, error) {
 	const q = `
 		SELECT reviewer_id
 		FROM pr_reviewers
@@ -84,7 +81,7 @@ func (r *PRRepository) loadReviewers(ctx context.Context, prID uuid.UUID) ([]uui
 	return ids, nil
 }
 
-func (r *PRRepository) GetPRByID(ctx context.Context, id uuid.UUID) (*models.PullRequest, error) {
+func (r *PRRepository) GetPRByID(ctx context.Context, id string) (*models.PullRequest, error) {
 	const q = `
 		SELECT id, title, author_id, status, created_at, merged_at, updated_at
 		FROM prs
@@ -107,7 +104,7 @@ func (r *PRRepository) GetPRByID(ctx context.Context, id uuid.UUID) (*models.Pul
 	return &pr, nil
 }
 
-func (r *PRRepository) LockPRByID(ctx context.Context, id uuid.UUID) (*models.PullRequest, error) {
+func (r *PRRepository) LockPRByID(ctx context.Context, id string) (*models.PullRequest, error) {
 	const q = `
 		SELECT id, title, author_id, status, created_at, merged_at, updated_at
 		FROM prs
@@ -131,7 +128,7 @@ func (r *PRRepository) LockPRByID(ctx context.Context, id uuid.UUID) (*models.Pu
 	return &pr, nil
 }
 
-func (r *PRRepository) CountReviewersByPRID(ctx context.Context, prID uuid.UUID) (int, error) {
+func (r *PRRepository) CountReviewersByPRID(ctx context.Context, prID string) (int, error) {
 	const q = `SELECT COUNT(*) FROM pr_reviewers WHERE pr_id = @pr_id;`
 	row := r.querier.QueryRow(ctx, q, pgx.NamedArgs{"pr_id": prID})
 	var c int
@@ -146,7 +143,7 @@ func (r *PRRepository) CountReviewersByPRID(ctx context.Context, prID uuid.UUID)
 	return c, nil
 }
 
-func (r *PRRepository) AddReviewer(ctx context.Context, prID uuid.UUID, reviewerID uuid.UUID) error {
+func (r *PRRepository) AddReviewer(ctx context.Context, prID string, reviewerID uuid.UUID) error {
 	count, err := r.CountReviewersByPRID(ctx, prID)
 	if err != nil {
 		return err
@@ -160,7 +157,7 @@ func (r *PRRepository) AddReviewer(ctx context.Context, prID uuid.UUID, reviewer
 		RETURNING pr_id;
 	`
 	row := r.querier.QueryRow(ctx, q, pgx.NamedArgs{"pr_id": prID, "reviewer_id": reviewerID})
-	var returnedPR uuid.UUID
+	var returnedPR string
 	if err := row.Scan(&returnedPR); err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
@@ -179,14 +176,14 @@ func (r *PRRepository) AddReviewer(ctx context.Context, prID uuid.UUID, reviewer
 	return nil
 }
 
-func (r *PRRepository) RemoveReviewer(ctx context.Context, prID uuid.UUID, reviewerID uuid.UUID) error {
+func (r *PRRepository) RemoveReviewer(ctx context.Context, prID string, reviewerID uuid.UUID) error {
 	const q = `
 		DELETE FROM pr_reviewers
 		WHERE pr_id = @pr_id AND reviewer_id = @reviewer_id
 		RETURNING pr_id;
 	`
 	row := r.querier.QueryRow(ctx, q, pgx.NamedArgs{"pr_id": prID, "reviewer_id": reviewerID})
-	var returnedPR uuid.UUID
+	var returnedPR string
 	if err := row.Scan(&returnedPR); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return utils.ErrReviewerNotAssigned
@@ -201,7 +198,7 @@ func (r *PRRepository) RemoveReviewer(ctx context.Context, prID uuid.UUID, revie
 	return nil
 }
 
-func (r *PRRepository) UpdateStatus(ctx context.Context, prID uuid.UUID, status models.PRStatus, mergedAt *time.Time) error {
+func (r *PRRepository) UpdateStatus(ctx context.Context, prID string, status models.PRStatus, mergedAt *time.Time) error {
 	if status != models.PRStatusOPEN && status != models.PRStatusMERGED {
 		return utils.ErrInvalidStatus
 	}
@@ -214,7 +211,7 @@ func (r *PRRepository) UpdateStatus(ctx context.Context, prID uuid.UUID, status 
 		RETURNING id;
 	`
 	row := r.querier.QueryRow(ctx, q, pgx.NamedArgs{"status": status, "merged_at": mergedAt, "id": prID})
-	var returnedID uuid.UUID
+	var returnedID string
 	if err := row.Scan(&returnedID); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			const existsQ = `SELECT 1 FROM prs WHERE id = @id;`

@@ -1,3 +1,79 @@
 package http
 
-// TODO: define router setup and route registration
+import (
+	input "avito-test-pr-service/internal/domain/ports/input"
+	"avito-test-pr-service/internal/infrastructure/config"
+	prhandler "avito-test-pr-service/internal/infrastructure/http/handlers/pr"
+	"avito-test-pr-service/internal/infrastructure/http/handlers/team"
+	"avito-test-pr-service/internal/infrastructure/http/handlers/user"
+	"avito-test-pr-service/internal/infrastructure/http/middlewares"
+	"avito-test-pr-service/internal/infrastructure/logger"
+	"encoding/json"
+	"net/http"
+
+	"github.com/go-chi/chi/v5"
+	chiMiddleware "github.com/go-chi/chi/v5/middleware"
+)
+
+type Router struct {
+	router *chi.Mux
+	log    *logger.Logger
+
+	prService   input.PRInputPort
+	teamService input.TeamInputPort
+	userService input.UserInputPort
+}
+
+func NewRouter(log *logger.Logger, prSvc input.PRInputPort, teamSvc input.TeamInputPort, userSvc input.UserInputPort) *Router {
+	return &Router{
+		router:      chi.NewRouter(),
+		log:         log,
+		prService:   prSvc,
+		teamService: teamSvc,
+		userService: userSvc,
+	}
+}
+
+func (r *Router) Setup(cfg *config.Config) {
+	r.router.Use(chiMiddleware.RequestID)
+	r.router.Use(chiMiddleware.RealIP)
+	r.router.Use(chiMiddleware.Recoverer)
+	r.router.Use(middlewares.RequestLoggerMiddleware(r.log))
+	r.router.Use(chiMiddleware.Timeout(cfg.HTTPServer.RequestTimeout))
+
+	r.router.Get("/ping", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	})
+
+	r.router.Mount("/users", r.setupUserRoutes())
+	r.router.Mount("/team", r.setupTeamRoutes())
+	r.router.Mount("/pullRequest", r.setupPRRoutes())
+}
+
+func (r *Router) setupUserRoutes() http.Handler {
+	h := user.NewUserHandler(r.userService, r.prService, r.log)
+	sub := chi.NewRouter()
+	sub.Post("/setIsActive", h.SetIsActive)
+	sub.Get("/getReview", h.GetReviews)
+	return sub
+}
+
+func (r *Router) setupTeamRoutes() http.Handler {
+	h := team.NewTeamHandler(r.teamService, r.userService, r.log)
+	sub := chi.NewRouter()
+	sub.Post("/add", h.AddTeam)
+	sub.Get("/get", h.GetTeam)
+	return sub
+}
+
+func (r *Router) setupPRRoutes() http.Handler {
+	h := prhandler.NewPRHandler(r.prService, r.log)
+	sub := chi.NewRouter()
+	sub.Post("/create", h.CreatePR)
+	sub.Post("/merge", h.MergePR)
+	sub.Post("/reassign", h.Reassign)
+	return sub
+}
+
+func (r *Router) GetRouter() *chi.Mux { return r.router }

@@ -7,7 +7,7 @@ import (
 )
 
 type PullRequest struct {
-	ID          uuid.UUID
+	ID          string
 	Title       string
 	AuthorID    uuid.UUID
 	Status      PRStatus

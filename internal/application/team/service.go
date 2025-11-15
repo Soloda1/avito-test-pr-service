@@ -5,8 +5,10 @@ import (
 	"avito-test-pr-service/internal/domain/ports/input"
 	ports "avito-test-pr-service/internal/domain/ports/output"
 	uow "avito-test-pr-service/internal/domain/ports/output/uow"
+	user_port "avito-test-pr-service/internal/domain/ports/output/user"
 	"avito-test-pr-service/internal/utils"
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
 )
@@ -175,4 +177,143 @@ func (s *Service) ListTeams(ctx context.Context) ([]*models.Team, error) {
 		return nil, err
 	}
 	return res, nil
+}
+
+func (s *Service) CreateTeamWithMembers(ctx context.Context, name string, members []*models.User) (*models.Team, []*models.User, error) {
+	if name == "" {
+		return nil, nil, utils.ErrInvalidArgument
+	}
+	tx, err := s.uow.Begin(ctx)
+	if err != nil {
+		s.log.Error("CreateTeamWithMembers begin tx failed", "err", err, "name", name)
+		return nil, nil, err
+	}
+	var commit bool
+	defer func() {
+		if !commit {
+			_ = tx.Rollback(ctx)
+		}
+	}()
+
+	teamRepo := tx.TeamRepository()
+	team := &models.Team{ID: uuid.New(), Name: name}
+	if err := teamRepo.CreateTeam(ctx, team); err != nil {
+		s.log.Error("CreateTeamWithMembers create team failed", "err", err, "name", name)
+		return nil, nil, err
+	}
+
+	userRepo := tx.UserRepository()
+
+	var resultUsers []*models.User
+	for _, memberSpec := range members {
+		processedUser, err := s.processTeamMember(ctx, userRepo, memberSpec)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		if err := teamRepo.AddMember(ctx, team.ID, processedUser.ID); err != nil {
+			if !errors.Is(err, utils.ErrAlreadyExists) {
+				s.log.Error("CreateTeamWithMembers add member failed", "err", err, "team_id", team.ID, "user_id", processedUser.ID)
+				return nil, nil, err
+			}
+		}
+		resultUsers = append(resultUsers, processedUser)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		s.log.Error("CreateTeamWithMembers commit failed", "err", err, "team_id", team.ID)
+		return nil, nil, err
+	}
+
+	commit = true
+	s.log.Info("CreateTeamWithMembers success", "team_id", team.ID, "name", team.Name, "members_count", len(resultUsers))
+	return team, resultUsers, nil
+}
+
+func (s *Service) processTeamMember(ctx context.Context, userRepo user_port.UserRepository, member *models.User) (*models.User, error) {
+	if member.ID == uuid.Nil {
+		member.ID = uuid.New()
+		if err := userRepo.CreateUser(ctx, member); err != nil {
+			if errors.Is(err, utils.ErrUserExists) {
+				s.log.Info("processTeamMember detected concurrent user create (generated id)", "user_id", member.ID)
+				if existing, gerr := userRepo.GetUserByID(ctx, member.ID); gerr == nil {
+					return existing, nil
+				}
+				s.log.Error("processTeamMember fetch after conflict failed", "err", err, "user_id", member.ID)
+				return nil, err
+			}
+			s.log.Error("processTeamMember create new user failed", "err", err, "username", member.Name)
+			return nil, err
+		}
+		return member, nil
+	}
+
+	existingUser, err := userRepo.GetUserByID(ctx, member.ID)
+	if err != nil {
+		if errors.Is(err, utils.ErrUserNotFound) {
+			if err := userRepo.CreateUser(ctx, member); err != nil {
+				if errors.Is(err, utils.ErrUserExists) {
+					s.log.Info("processTeamMember detected concurrent user create (provided id)", "user_id", member.ID)
+					if existing, gerr := userRepo.GetUserByID(ctx, member.ID); gerr == nil {
+						return existing, nil
+					}
+					s.log.Error("processTeamMember fetch after conflict failed", "err", err, "user_id", member.ID)
+					return nil, err
+				}
+				s.log.Error("processTeamMember create user with id failed", "err", err, "user_id", member.ID)
+				return nil, err
+			}
+			return member, nil
+		}
+		s.log.Error("processTeamMember get user failed", "err", err, "user_id", member.ID)
+		return nil, err
+	}
+
+	return s.updateExistingUser(ctx, userRepo, existingUser, member)
+}
+
+func (s *Service) updateExistingUser(ctx context.Context, userRepo user_port.UserRepository, existing *models.User, spec *models.User) (*models.User, error) {
+	updatedUser := &models.User{
+		ID:       existing.ID,
+		Name:     existing.Name,
+		IsActive: existing.IsActive,
+	}
+
+	if spec.IsActive != existing.IsActive {
+		if err := userRepo.UpdateUserActive(ctx, existing.ID, spec.IsActive); err != nil {
+			s.log.Error("updateExistingUser update active failed", "err", err, "user_id", existing.ID)
+			return nil, err
+		}
+		updatedUser.IsActive = spec.IsActive
+	}
+
+	if spec.Name != "" && spec.Name != existing.Name {
+		if err := userRepo.UpdateUserName(ctx, existing.ID, spec.Name); err != nil {
+			s.log.Error("updateExistingUser update name failed", "err", err, "user_id", existing.ID)
+			return nil, err
+		}
+		updatedUser.Name = spec.Name
+	}
+
+	return updatedUser, nil
+}
+
+func (s *Service) GetTeamByName(ctx context.Context, name string) (*models.Team, error) {
+	if name == "" {
+		return nil, utils.ErrInvalidArgument
+	}
+	tx, err := s.uow.Begin(ctx)
+	if err != nil {
+		s.log.Error("GetTeamByName begin tx failed", "err", err, "team_name", name)
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	repo := tx.TeamRepository()
+	team, err := repo.GetTeamByName(ctx, name)
+	if err != nil {
+		s.log.Error("GetTeamByName repo failed", "err", err, "team_name", name)
+		return nil, err
+	}
+	return team, nil
 }
