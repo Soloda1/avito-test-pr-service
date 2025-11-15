@@ -25,9 +25,9 @@ func (_m *PRInputPort) EXPECT() *PRInputPort_Expecter {
 	return &PRInputPort_Expecter{mock: &_m.Mock}
 }
 
-// CreatePR provides a mock function with given fields: ctx, authorID, title
-func (_m *PRInputPort) CreatePR(ctx context.Context, authorID uuid.UUID, title string) (*models.PullRequest, error) {
-	ret := _m.Called(ctx, authorID, title)
+// CreatePR provides a mock function with given fields: ctx, prID, authorID, title
+func (_m *PRInputPort) CreatePR(ctx context.Context, prID uuid.UUID, authorID uuid.UUID, title string) (*models.PullRequest, error) {
+	ret := _m.Called(ctx, prID, authorID, title)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreatePR")
@@ -35,19 +35,19 @@ func (_m *PRInputPort) CreatePR(ctx context.Context, authorID uuid.UUID, title s
 
 	var r0 *models.PullRequest
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) (*models.PullRequest, error)); ok {
-		return rf(ctx, authorID, title)
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string) (*models.PullRequest, error)); ok {
+		return rf(ctx, prID, authorID, title)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) *models.PullRequest); ok {
-		r0 = rf(ctx, authorID, title)
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string) *models.PullRequest); ok {
+		r0 = rf(ctx, prID, authorID, title)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*models.PullRequest)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID, string) error); ok {
-		r1 = rf(ctx, authorID, title)
+	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, string) error); ok {
+		r1 = rf(ctx, prID, authorID, title)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -62,15 +62,16 @@ type PRInputPort_CreatePR_Call struct {
 
 // CreatePR is a helper method to define mock.On call
 //   - ctx context.Context
+//   - prID uuid.UUID
 //   - authorID uuid.UUID
 //   - title string
-func (_e *PRInputPort_Expecter) CreatePR(ctx interface{}, authorID interface{}, title interface{}) *PRInputPort_CreatePR_Call {
-	return &PRInputPort_CreatePR_Call{Call: _e.mock.On("CreatePR", ctx, authorID, title)}
+func (_e *PRInputPort_Expecter) CreatePR(ctx interface{}, prID interface{}, authorID interface{}, title interface{}) *PRInputPort_CreatePR_Call {
+	return &PRInputPort_CreatePR_Call{Call: _e.mock.On("CreatePR", ctx, prID, authorID, title)}
 }
 
-func (_c *PRInputPort_CreatePR_Call) Run(run func(ctx context.Context, authorID uuid.UUID, title string)) *PRInputPort_CreatePR_Call {
+func (_c *PRInputPort_CreatePR_Call) Run(run func(ctx context.Context, prID uuid.UUID, authorID uuid.UUID, title string)) *PRInputPort_CreatePR_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(uuid.UUID), args[2].(string))
+		run(args[0].(context.Context), args[1].(uuid.UUID), args[2].(uuid.UUID), args[3].(string))
 	})
 	return _c
 }
@@ -80,7 +81,7 @@ func (_c *PRInputPort_CreatePR_Call) Return(_a0 *models.PullRequest, _a1 error) 
 	return _c
 }
 
-func (_c *PRInputPort_CreatePR_Call) RunAndReturn(run func(context.Context, uuid.UUID, string) (*models.PullRequest, error)) *PRInputPort_CreatePR_Call {
+func (_c *PRInputPort_CreatePR_Call) RunAndReturn(run func(context.Context, uuid.UUID, uuid.UUID, string) (*models.PullRequest, error)) *PRInputPort_CreatePR_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -17,6 +17,7 @@ import (
 
 func TestPRService_CreatePR(t *testing.T) {
 	ctx := context.Background()
+	prID := uuid.New()
 	authorID := uuid.New()
 	teamID := uuid.New()
 	// candidates
@@ -40,7 +41,7 @@ func TestPRService_CreatePR(t *testing.T) {
 				tx.EXPECT().PRRepository().Return(prRepo)
 				sel.EXPECT().Select(mock.MatchedBy(func(ids []uuid.UUID) bool { return len(ids) == 3 }), 2).Return([]uuid.UUID{c1, c2})
 				prRepo.EXPECT().CreatePR(ctx, mock.MatchedBy(func(pr *models.PullRequest) bool {
-					return pr.AuthorID == authorID && pr.Title == "feat" && len(pr.ReviewerIDs) == 2
+					return pr.ID == prID && pr.AuthorID == authorID && pr.Title == "feat" && len(pr.ReviewerIDs) == 2
 				})).Return(nil)
 				tx.EXPECT().Commit(ctx).Return(nil)
 			},
@@ -56,7 +57,9 @@ func TestPRService_CreatePR(t *testing.T) {
 				userRepo.EXPECT().ListActiveMembersByTeamID(ctx, teamID).Return([]uuid.UUID{authorID, c1}, nil)
 				tx.EXPECT().PRRepository().Return(prRepo)
 				sel.EXPECT().Select(mock.Anything, 2).Return([]uuid.UUID{c1})
-				prRepo.EXPECT().CreatePR(ctx, mock.MatchedBy(func(pr *models.PullRequest) bool { return len(pr.ReviewerIDs) == 1 && pr.ReviewerIDs[0] == c1 })).Return(nil)
+				prRepo.EXPECT().CreatePR(ctx, mock.MatchedBy(func(pr *models.PullRequest) bool {
+					return pr.ID == prID && len(pr.ReviewerIDs) == 1 && pr.ReviewerIDs[0] == c1
+				})).Return(nil)
 				tx.EXPECT().Commit(ctx).Return(nil)
 			},
 		},
@@ -71,7 +74,7 @@ func TestPRService_CreatePR(t *testing.T) {
 				userRepo.EXPECT().ListActiveMembersByTeamID(ctx, teamID).Return([]uuid.UUID{authorID}, nil)
 				tx.EXPECT().PRRepository().Return(prRepo)
 				sel.EXPECT().Select([]uuid.UUID{}, 2).Return(nil)
-				prRepo.EXPECT().CreatePR(ctx, mock.MatchedBy(func(pr *models.PullRequest) bool { return len(pr.ReviewerIDs) == 0 })).Return(nil)
+				prRepo.EXPECT().CreatePR(ctx, mock.MatchedBy(func(pr *models.PullRequest) bool { return pr.ID == prID && len(pr.ReviewerIDs) == 0 })).Return(nil)
 				tx.EXPECT().Commit(ctx).Return(nil)
 			},
 		},
@@ -114,7 +117,7 @@ func TestPRService_CreatePR(t *testing.T) {
 			mockTx.EXPECT().PRRepository().Maybe().Return(mockPRRepo)
 			mockTx.EXPECT().UserRepository().Maybe().Return(mockUserRepo)
 			svc := app.NewService(mockUOW, mockSel, log)
-			pr, err := svc.CreatePR(ctx, authorID, tt.title)
+			pr, err := svc.CreatePR(ctx, prID, authorID, tt.title)
 			if tt.wantErr != nil {
 				require.Error(t, err)
 				require.ErrorIs(t, err, tt.wantErr)

@@ -44,7 +44,7 @@ func (h *PRHandler) CreatePR(w http.ResponseWriter, r *http.Request) {
 
 	h.log.Info("CreatePR request", slog.String("pr_id", prID.String()), slog.String("author_id", authorID.String()))
 
-	pr, err := h.prService.CreatePR(r.Context(), authorID, req.PullRequestName)
+	pr, err := h.prService.CreatePR(r.Context(), prID, authorID, req.PullRequestName)
 	if err != nil {
 		switch {
 		case errors.Is(err, utils.ErrPRExists):

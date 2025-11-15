@@ -23,14 +23,14 @@ func NewService(uow uow.UnitOfWork, selector services.ReviewerSelector, log port
 	return &Service{uow: uow, selector: selector, log: log}
 }
 
-func (s *Service) CreatePR(ctx context.Context, authorID uuid.UUID, title string) (*models.PullRequest, error) {
-	if authorID == uuid.Nil || title == "" {
+func (s *Service) CreatePR(ctx context.Context, prID uuid.UUID, authorID uuid.UUID, title string) (*models.PullRequest, error) {
+	if prID == uuid.Nil || authorID == uuid.Nil || title == "" {
 		return nil, utils.ErrInvalidArgument
 	}
 
 	tx, err := s.uow.Begin(ctx)
 	if err != nil {
-		s.log.Error("CreatePR begin tx failed", "err", err, "author_id", authorID)
+		s.log.Error("CreatePR begin tx failed", "err", err, "author_id", authorID, "pr_id", prID)
 		return nil, err
 	}
 
@@ -69,14 +69,14 @@ func (s *Service) CreatePR(ctx context.Context, authorID uuid.UUID, title string
 
 	prRepo := tx.PRRepository()
 	pr := &models.PullRequest{
-		ID:          uuid.New(),
+		ID:          prID,
 		Title:       title,
 		AuthorID:    authorID,
 		Status:      models.PRStatusOPEN,
 		ReviewerIDs: selected,
 	}
 	if err := prRepo.CreatePR(ctx, pr); err != nil {
-		s.log.Error("CreatePR repo failed", "err", err, "author_id", authorID)
+		s.log.Error("CreatePR repo failed", "err", err, "author_id", authorID, "pr_id", prID)
 		return nil, err
 	}
 

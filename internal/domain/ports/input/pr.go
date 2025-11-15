@@ -10,7 +10,7 @@ import (
 //go:generate mockery --name PRInputPort --dir . --output ../../../../mocks --outpkg mocks --with-expecter --filename PRInputPort.go
 
 type PRInputPort interface {
-	CreatePR(ctx context.Context, authorID uuid.UUID, title string) (*models.PullRequest, error)
+	CreatePR(ctx context.Context, prID uuid.UUID, authorID uuid.UUID, title string) (*models.PullRequest, error)
 	ReassignReviewer(ctx context.Context, prID uuid.UUID, oldReviewerID uuid.UUID) (*models.PullRequest, error)
 	MergePR(ctx context.Context, prID uuid.UUID) (*models.PullRequest, error)
 	GetPR(ctx context.Context, prID uuid.UUID) (*models.PullRequest, error)
