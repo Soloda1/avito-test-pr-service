@@ -24,8 +24,11 @@ func NewService(uow uow.UnitOfWork, selector services.ReviewerSelector, log port
 }
 
 func (s *Service) CreatePR(ctx context.Context, prID string, authorID uuid.UUID, title string) (*models.PullRequest, error) {
-	if prID == "" || authorID == uuid.Nil || title == "" {
+	if authorID == uuid.Nil || title == "" {
 		return nil, utils.ErrInvalidArgument
+	}
+	if prID == "" {
+		prID = uuid.NewString()
 	}
 
 	tx, err := s.uow.Begin(ctx)

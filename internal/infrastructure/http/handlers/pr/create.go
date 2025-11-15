@@ -12,7 +12,7 @@ import (
 )
 
 type CreatePRRequest struct {
-	PullRequestID   string `json:"pull_request_id" validate:"required"`
+	PullRequestID   string `json:"pull_request_id"`
 	PullRequestName string `json:"pull_request_name" validate:"required"`
 	AuthorID        string `json:"author_id" validate:"required"`
 }
@@ -32,17 +32,17 @@ func (h *PRHandler) CreatePR(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	prID := req.PullRequestID
-	if prID == "" {
-		_ = utils.WriteError(w, http.StatusBadRequest, "BAD_REQUEST", "pull_request_id is required")
-		return
-	}
 	authorID, err := uuid.Parse(req.AuthorID)
 	if err != nil {
 		_ = utils.WriteError(w, http.StatusBadRequest, "BAD_REQUEST", "invalid author_id")
 		return
 	}
 
-	h.log.Info("CreatePR request", slog.String("pr_id", prID), slog.String("author_id", authorID.String()))
+	if prID == "" {
+		h.log.Info("CreatePR request without id, will generate", slog.String("author_id", authorID.String()))
+	} else {
+		h.log.Info("CreatePR request", slog.String("pr_id", prID), slog.String("author_id", authorID.String()))
+	}
 
 	pr, err := h.prService.CreatePR(r.Context(), prID, authorID, req.PullRequestName)
 	if err != nil {

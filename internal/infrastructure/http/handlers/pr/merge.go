@@ -7,8 +7,6 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
-
-	"github.com/google/uuid"
 )
 
 type MergePRRequest struct {
@@ -29,13 +27,13 @@ func (h *PRHandler) MergePR(w http.ResponseWriter, r *http.Request) {
 		_ = utils.WriteError(w, http.StatusBadRequest, "BAD_REQUEST", "validation failed")
 		return
 	}
-	prID, err := uuid.Parse(req.PullRequestID)
-	if err != nil {
-		_ = utils.WriteError(w, http.StatusBadRequest, "BAD_REQUEST", "invalid pull_request_id")
+	prID := req.PullRequestID
+	if prID == "" {
+		_ = utils.WriteError(w, http.StatusBadRequest, "BAD_REQUEST", "pull_request_id is required")
 		return
 	}
 
-	h.log.Info("MergePR request", slog.String("pr_id", prID.String()))
+	h.log.Info("MergePR request", slog.String("pr_id", prID))
 
 	pr, err := h.prService.MergePR(r.Context(), prID)
 	if err != nil {
@@ -44,7 +42,7 @@ func (h *PRHandler) MergePR(w http.ResponseWriter, r *http.Request) {
 			_ = utils.WriteError(w, http.StatusNotFound, "NOT_FOUND", err.Error())
 			return
 		default:
-			h.log.Error("MergePR failed", slog.Any("err", err), slog.String("pr_id", prID.String()))
+			h.log.Error("MergePR failed", slog.Any("err", err), slog.String("pr_id", prID))
 			_ = utils.WriteError(w, http.StatusInternalServerError, "INTERNAL", "internal error")
 			return
 		}

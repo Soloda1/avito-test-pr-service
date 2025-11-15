@@ -31,9 +31,9 @@ func (h *PRHandler) Reassign(w http.ResponseWriter, r *http.Request) {
 		_ = utils.WriteError(w, http.StatusBadRequest, "BAD_REQUEST", "validation failed")
 		return
 	}
-	prID, err := uuid.Parse(req.PullRequestID)
-	if err != nil {
-		_ = utils.WriteError(w, http.StatusBadRequest, "BAD_REQUEST", "invalid pull_request_id")
+	prID := req.PullRequestID
+	if prID == "" {
+		_ = utils.WriteError(w, http.StatusBadRequest, "BAD_REQUEST", "pull_request_id is required")
 		return
 	}
 	oldID, err := uuid.Parse(req.OldUserID)
@@ -42,7 +42,7 @@ func (h *PRHandler) Reassign(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.log.Info("Reassign request", slog.String("pr_id", prID.String()), slog.String("old_user_id", oldID.String()))
+	h.log.Info("Reassign request", slog.String("pr_id", prID), slog.String("old_user_id", oldID.String()))
 
 	pr, err := h.prService.ReassignReviewer(r.Context(), prID, oldID)
 	if err != nil {
@@ -66,7 +66,7 @@ func (h *PRHandler) Reassign(w http.ResponseWriter, r *http.Request) {
 			}
 			return
 		default:
-			h.log.Error("Reassign failed", slog.Any("err", err), slog.String("pr_id", prID.String()))
+			h.log.Error("Reassign failed", slog.Any("err", err), slog.String("pr_id", prID))
 			_ = utils.WriteError(w, http.StatusInternalServerError, "INTERNAL", "internal error")
 			return
 		}

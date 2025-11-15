@@ -45,7 +45,7 @@ func (h *UserHandler) GetReviews(w http.ResponseWriter, r *http.Request) {
 	resp := GetReviewsResponse{UserID: req.UserID, PullRequests: []PullRequestShort{}}
 	for _, p := range prs {
 		resp.PullRequests = append(resp.PullRequests, PullRequestShort{
-			ID:     p.ID.String(),
+			ID:     p.ID,
 			Title:  p.Title,
 			Author: p.AuthorID.String(),
 			Status: string(p.Status),
