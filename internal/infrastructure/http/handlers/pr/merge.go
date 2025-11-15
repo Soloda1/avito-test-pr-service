@@ -28,10 +28,6 @@ func (h *PRHandler) MergePR(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	prID := req.PullRequestID
-	if prID == "" {
-		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPCodeConverter(http.StatusBadRequest), utils.ErrInvalidArgument.Error())
-		return
-	}
 
 	h.log.Info("MergePR request", slog.String("pr_id", prID))
 
