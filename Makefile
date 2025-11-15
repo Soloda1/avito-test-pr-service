@@ -20,13 +20,12 @@ LDFLAGS=-s -w
 TEST_FLAGS=-count=1
 RACE_FLAGS=-race
 
-.PHONY: help check-go-version fmt lint build build-migrator run migrate-up migrate-down docker-build up down restart logs db-shell psql test test-race coverage tidy clean generate
+.PHONY: help check-go-version fmt build run migrate-up migrate-down up down restart logs db-shell psql test test-race coverage clean
 
 help:
 	@echo "Доступные цели:"
 	@echo "  check-go-version    - Проверить установленную версию Go"
-	@echo "  fmt                 - Форматирование кода"
-	@echo "  lint                - Базовая проверка (go vet)"
+	@echo "  fmt                 - Форматирование, go vet и go mod tidy"
 	@echo "  build               - Сборка бинарника сервера"
 	@echo "  run                 - Запуск сервера локально (go run)"
 	@echo "  migrate-up          - Применить миграции (go run мигратора)"
@@ -40,7 +39,6 @@ help:
 	@echo "  test                - Запуск тестов"
 	@echo "  test-race           - Тесты с -race"
 	@echo "  coverage            - Отчёт покрытия (HTML)"
-	@echo "  tidy                - go mod tidy"
 	@echo "  clean               - Очистка бинарников и кешей"
 
 check-go-version:
@@ -49,14 +47,12 @@ check-go-version:
 	@echo "✅ Go $(GO_VERSION) найден"
 
 fmt: check-go-version
+	@echo "🧹 gofmt + go fmt + go vet + go mod tidy"
 	@gofmt -s -w .
 	@go fmt ./...
-	@echo "✅ Форматирование завершено"
-
-lint: check-go-version
-	@echo "🔍 go vet ..."
-	@go vet ./... || exit 1
-	@echo "✅ Линт пройден"
+	@go vet ./...
+	@go mod tidy
+	@echo "✅ fmt/vet/tidy завершены"
 
 build: check-go-version
 	@echo "🔨 Сборка сервера..."
@@ -75,7 +71,6 @@ migrate-up: check-go-version
 migrate-down: check-go-version
 	@echo "🔄 Откат миграций..."
 	@go run $(MIGRATOR_MAIN) -command down
-
 
 up:
 	@echo "🚀 docker-compose up -d"
@@ -118,16 +113,9 @@ coverage: check-go-version
 	@go tool cover -html=coverage.out -o coverage.html
 	@echo "✅ coverage.html готов"
 
- tidy: check-go-version
-	@echo "📦 go mod tidy"
-	@go mod tidy
-	@echo "✅ Модули обновлены"
-
 clean:
 	@echo "🧹 Очистка..."
 	@go clean -cache -testcache -modcache
 	@rm -rf $(BINARY_DIR)
 	@rm -f coverage.out coverage.html
 	@echo "✅ Очистка завершена"
-
-
