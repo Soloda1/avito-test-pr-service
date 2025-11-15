@@ -4,6 +4,7 @@ import (
 	"avito-test-pr-service/internal/domain/models"
 	"avito-test-pr-service/internal/utils"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 
@@ -57,8 +58,18 @@ func (h *TeamHandler) AddTeam(w http.ResponseWriter, r *http.Request) {
 
 	team, users, err := h.teamService.CreateTeamWithMembers(r.Context(), req.TeamName, usersIn)
 	if err != nil {
-		_ = utils.WriteError(w, http.StatusInternalServerError, "INTERNAL", "internal error")
-		return
+		switch {
+		case errors.Is(err, utils.ErrAlreadyExists):
+			_ = utils.WriteError(w, http.StatusConflict, "CONFLICT", "team already exists")
+			return
+		case errors.Is(err, utils.ErrInvalidArgument):
+			_ = utils.WriteError(w, http.StatusBadRequest, "BAD_REQUEST", err.Error())
+			return
+		default:
+			h.log.Error("AddTeam service failed", slog.String("team_name", req.TeamName), slog.Any("err", err))
+			_ = utils.WriteError(w, http.StatusInternalServerError, "INTERNAL", "internal error")
+			return
+		}
 	}
 
 	var resp AddTeamResponse
