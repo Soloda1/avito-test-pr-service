@@ -196,10 +196,6 @@ func (s *Service) UpdateUserName(ctx context.Context, id uuid.UUID, name string)
 	}()
 
 	repo := tx.UserRepository()
-	if _, err := repo.GetUserByID(ctx, id); err != nil {
-		s.log.Error("UpdateUserName get user failed", "err", err, "user_id", id)
-		return err
-	}
 	if err := repo.UpdateUserName(ctx, id, name); err != nil {
 		s.log.Error("UpdateUserName repo failed", "err", err, "user_id", id)
 		return err
