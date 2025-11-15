@@ -21,7 +21,7 @@ func ToPRDTO(pr *models.PullRequest) PRDTO {
 		reviewers = append(reviewers, id.String())
 	}
 	return PRDTO{
-		PullRequestID:     pr.ID.String(),
+		PullRequestID:     pr.ID,
 		PullRequestName:   pr.Title,
 		AuthorID:          pr.AuthorID.String(),
 		Status:            string(pr.Status),

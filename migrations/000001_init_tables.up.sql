@@ -20,7 +20,7 @@ CREATE TABLE team_members (
 );
 
 CREATE TABLE prs (
-     id UUID PRIMARY KEY,
+     id TEXT PRIMARY KEY,
      title TEXT NOT NULL,
      author_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
      status TEXT NOT NULL DEFAULT 'OPEN' CHECK (status IN ('OPEN', 'MERGED')),
@@ -30,7 +30,7 @@ CREATE TABLE prs (
 );
 
 CREATE TABLE pr_reviewers (
-  pr_id UUID NOT NULL REFERENCES prs(id) ON DELETE CASCADE,
+  pr_id TEXT NOT NULL REFERENCES prs(id) ON DELETE CASCADE,
   reviewer_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   assigned_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (pr_id, reviewer_id)
