@@ -234,6 +234,14 @@ func (s *Service) processTeamMember(ctx context.Context, userRepo user_port.User
 	if member.ID == uuid.Nil {
 		member.ID = uuid.New()
 		if err := userRepo.CreateUser(ctx, member); err != nil {
+			if errors.Is(err, utils.ErrUserExists) {
+				s.log.Info("processTeamMember detected concurrent user create (generated id)", "user_id", member.ID)
+				if existing, gerr := userRepo.GetUserByID(ctx, member.ID); gerr == nil {
+					return existing, nil
+				}
+				s.log.Error("processTeamMember fetch after conflict failed", "err", err, "user_id", member.ID)
+				return nil, err
+			}
 			s.log.Error("processTeamMember create new user failed", "err", err, "username", member.Name)
 			return nil, err
 		}
@@ -244,6 +252,14 @@ func (s *Service) processTeamMember(ctx context.Context, userRepo user_port.User
 	if err != nil {
 		if errors.Is(err, utils.ErrUserNotFound) {
 			if err := userRepo.CreateUser(ctx, member); err != nil {
+				if errors.Is(err, utils.ErrUserExists) {
+					s.log.Info("processTeamMember detected concurrent user create (provided id)", "user_id", member.ID)
+					if existing, gerr := userRepo.GetUserByID(ctx, member.ID); gerr == nil {
+						return existing, nil
+					}
+					s.log.Error("processTeamMember fetch after conflict failed", "err", err, "user_id", member.ID)
+					return nil, err
+				}
 				s.log.Error("processTeamMember create user with id failed", "err", err, "user_id", member.ID)
 				return nil, err
 			}
