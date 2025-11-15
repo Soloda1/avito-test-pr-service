@@ -60,6 +60,14 @@ func (r *UserRepository) GetUserByID(ctx context.Context, id string) (*models.Us
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, utils.ErrUserNotFound
 		}
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			if pgErr.Code == "22P02" {
+				r.log.Error("GetUserByID invalid id format", "user_id", id, "err", pgErr)
+				return nil, utils.ErrInvalidArgument
+			}
+			r.log.Error("GetUserByID pg error", "code", pgErr.Code, "constraint", pgErr.ConstraintName, "user_id", id, "err", pgErr)
+		}
 		r.log.Error("GetUserByID failed", "user_id", id, "err", err)
 		return nil, err
 	}
@@ -82,6 +90,10 @@ func (r *UserRepository) UpdateUserActive(ctx context.Context, id string, isActi
 		}
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
+			if pgErr.Code == "22P02" {
+				r.log.Error("UpdateUserActive invalid id format", "user_id", id, "err", pgErr)
+				return utils.ErrInvalidArgument
+			}
 			r.log.Error("UpdateUserActive pg error", "code", pgErr.Code, "constraint", pgErr.ConstraintName, "user_id", id, "err", pgErr)
 		}
 		r.log.Error("UpdateUserActive failed", "user_id", id, "err", err)
@@ -199,6 +211,10 @@ func (r *UserRepository) UpdateUserName(ctx context.Context, id string, name str
 		}
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
+			if pgErr.Code == "22P02" {
+				r.log.Error("UpdateUserName invalid id format", "user_id", id, "err", pgErr)
+				return utils.ErrInvalidArgument
+			}
 			r.log.Error("UpdateUserName pg error", "code", pgErr.Code, "constraint", pgErr.ConstraintName, "user_id", id, "err", pgErr)
 		}
 		r.log.Error("UpdateUserName failed", "user_id", id, "err", err)
