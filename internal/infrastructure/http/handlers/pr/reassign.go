@@ -47,20 +47,18 @@ func (h *PRHandler) Reassign(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, utils.ErrPRNotFound) || errors.Is(err, utils.ErrUserNotFound):
 			_ = utils.WriteError(w, http.StatusNotFound, utils.HTTPStatusToCode(http.StatusNotFound), err.Error())
 			return
-		case errors.Is(err, utils.ErrAlreadyMerged), errors.Is(err, utils.ErrReviewerNotAssigned), errors.Is(err, utils.ErrNoReplacementCandidates):
-			code := http.StatusConflict
-			if errors.Is(err, utils.ErrAlreadyMerged) {
-				_ = utils.WriteError(w, code, utils.HTTPStatusToCode(code), err.Error())
-				return
+		case errors.Is(err, utils.ErrAlreadyMerged) || errors.Is(err, utils.ErrReviewerNotAssigned) || errors.Is(err, utils.ErrNoReplacementCandidates):
+			status := http.StatusConflict
+			codeStr := "CONFLICT"
+			switch {
+			case errors.Is(err, utils.ErrAlreadyMerged):
+				codeStr = "PR_MERGED"
+			case errors.Is(err, utils.ErrReviewerNotAssigned):
+				codeStr = "NOT_ASSIGNED"
+			case errors.Is(err, utils.ErrNoReplacementCandidates):
+				codeStr = "NO_CANDIDATE"
 			}
-			if errors.Is(err, utils.ErrReviewerNotAssigned) {
-				_ = utils.WriteError(w, code, utils.HTTPStatusToCode(code), err.Error())
-				return
-			}
-			if errors.Is(err, utils.ErrNoReplacementCandidates) {
-				_ = utils.WriteError(w, code, utils.HTTPStatusToCode(code), err.Error())
-				return
-			}
+			_ = utils.WriteError(w, status, codeStr, err.Error())
 			return
 		default:
 			h.log.Error("Reassign failed", slog.Any("err", err), slog.String("pr_id", prID))
