@@ -8,7 +8,7 @@ import (
 )
 
 type GetTeamRequest struct {
-	TeamName string `json:"team_name"`
+	TeamName string `json:"team_name" validate:"required"`
 }
 
 type GetTeamResponse struct {

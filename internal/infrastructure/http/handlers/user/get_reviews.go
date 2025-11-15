@@ -9,7 +9,7 @@ import (
 )
 
 type GetReviewsRequest struct {
-	UserID string `json:"user_id"`
+	UserID string `json:"user_id" validate:"required"`
 }
 
 type GetReviewsResponse struct {

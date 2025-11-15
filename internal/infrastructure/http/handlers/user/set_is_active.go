@@ -7,12 +7,13 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 )
 
 type SetIsActiveRequest struct {
-	UserID   string `json:"user_id"`
-	IsActive bool   `json:"is_active"`
+	UserID   string `json:"user_id" validate:"required"`
+	IsActive bool   `json:"is_active" validate:"required"`
 }
 
 type SetIsActiveResponse struct {
@@ -28,6 +29,11 @@ func (h *UserHandler) SetIsActive(w http.ResponseWriter, r *http.Request) {
 	var req SetIsActiveRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPStatusToCode(http.StatusBadRequest), "invalid json body")
+		return
+	}
+	validate := validator.New()
+	if err := validate.Struct(req); err != nil {
+		_ = utils.WriteError(w, http.StatusBadRequest, "BAD_REQUEST", "validation failed")
 		return
 	}
 	userID, err := uuid.Parse(req.UserID)
