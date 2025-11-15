@@ -8,6 +8,7 @@ import (
 	"avito-test-pr-service/internal/infrastructure/http/handlers/user"
 	"avito-test-pr-service/internal/infrastructure/http/middlewares"
 	"avito-test-pr-service/internal/infrastructure/logger"
+	"encoding/json"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -39,6 +40,11 @@ func (r *Router) Setup(cfg *config.Config) {
 	r.router.Use(chiMiddleware.Recoverer)
 	r.router.Use(middlewares.RequestLoggerMiddleware(r.log))
 	r.router.Use(chiMiddleware.Timeout(cfg.HTTPServer.RequestTimeout))
+
+	r.router.Get("/ping", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	})
 
 	r.router.Mount("/users", r.setupUserRoutes())
 	r.router.Mount("/team", r.setupTeamRoutes())

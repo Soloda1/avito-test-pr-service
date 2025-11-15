@@ -8,6 +8,7 @@ tags:
   - name: Users
   - name: PullRequests
   - name: Health
+    description: "Эндпоинты для проверки состояния и доступности сервиса"
 
 components:
   parameters:
@@ -122,6 +123,26 @@ components:
           enum: [OPEN, MERGED]
 
 paths:
+  /ping:
+    get:
+      tags: [Health]
+      summary: Проверка состояния сервиса
+      description: Возвращает статус работоспособности сервиса.
+      responses:
+        '200':
+          description: Сервис доступен
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    example: ok
+              example:
+                status: ok
+
   /team/add:
     post:
       tags: [Teams]
