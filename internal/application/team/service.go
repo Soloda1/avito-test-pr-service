@@ -9,6 +9,7 @@ import (
 	"avito-test-pr-service/internal/utils"
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/google/uuid"
 )
@@ -185,6 +186,16 @@ func (s *Service) CreateTeamWithMembers(ctx context.Context, name string, member
 	if name == "" {
 		return nil, nil, utils.ErrInvalidArgument
 	}
+	for idx, m := range members {
+		if m == nil {
+			s.log.Error("CreateTeamWithMembers nil member", "index", idx)
+			return nil, nil, fmt.Errorf("member[%d] is nil: %w", idx, utils.ErrInvalidArgument)
+		}
+		if m.ID == "" {
+			s.log.Error("CreateTeamWithMembers empty member id", "index", idx)
+			return nil, nil, fmt.Errorf("member[%d] has empty id: %w", idx, utils.ErrInvalidArgument)
+		}
+	}
 	tx, err := s.uow.Begin(ctx)
 	if err != nil {
 		s.log.Error("CreateTeamWithMembers begin tx failed", "err", err, "name", name)
@@ -210,9 +221,6 @@ func (s *Service) CreateTeamWithMembers(ctx context.Context, name string, member
 		processedUser, err := s.processTeamMember(ctx, userRepo, memberSpec)
 		if err != nil {
 			return nil, nil, err
-		}
-		if processedUser.ID == "" {
-			return nil, nil, utils.ErrInvalidArgument
 		}
 		if err := teamRepo.AddMember(ctx, team.ID, processedUser.ID); err != nil {
 			if !errors.Is(err, utils.ErrAlreadyExists) {

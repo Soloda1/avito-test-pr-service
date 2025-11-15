@@ -186,14 +186,15 @@ func (r *PRRepository) AddReviewer(ctx context.Context, prID string, reviewerID 
 			case "23505":
 				return utils.ErrReviewerAlreadyAssigned
 			case "23503":
-				name := strings.ToLower(pgErr.ConstraintName)
-				if strings.Contains(name, "reviewer") || strings.Contains(name, "user") {
+
+				switch strings.ToLower(pgErr.TableName) {
+				case "users":
 					return utils.ErrUserNotFound
-				}
-				if strings.Contains(name, "pr") {
+				case "prs":
 					return utils.ErrPRNotFound
+				default:
+					return utils.ErrInvalidArgument
 				}
-				return utils.ErrInvalidArgument
 			case "22P02":
 				return utils.ErrInvalidArgument
 			}
@@ -271,7 +272,7 @@ func (r *PRRepository) ListPRsByReviewer(ctx context.Context, reviewerID string,
 		FROM prs p
 		JOIN pr_reviewers r ON p.id = r.pr_id
 		LEFT JOIN pr_reviewers r2 ON p.id = r2.pr_id
-		WHERE r.reviewer_id = @reviewer_id AND (@status::text IS NULL OR p.status = @status::text)
+		WHERE r.reviewer_id = @reviewer_id AND (@status IS NULL OR p.status = @status::text)
 		GROUP BY p.id, p.title, p.author_id, p.status, p.created_at, p.merged_at, p.updated_at
 		ORDER BY p.created_at DESC;
 	`
