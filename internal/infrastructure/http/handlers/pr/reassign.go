@@ -31,10 +31,6 @@ func (h *PRHandler) Reassign(w http.ResponseWriter, r *http.Request) {
 	}
 	prID := req.PullRequestID
 	oldID := req.OldUserID
-	if prID == "" || oldID == "" {
-		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPCodeConverter(http.StatusBadRequest), utils.ErrInvalidArgument.Error())
-		return
-	}
 
 	h.log.Info("Reassign request", slog.String("pr_id", prID), slog.String("old_user_id", oldID))
 

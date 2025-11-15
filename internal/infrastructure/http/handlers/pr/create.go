@@ -32,11 +32,6 @@ func (h *PRHandler) CreatePR(w http.ResponseWriter, r *http.Request) {
 	prID := req.PullRequestID
 	authorID := req.AuthorID
 
-	if prID == "" || authorID == "" {
-		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPCodeConverter(http.StatusBadRequest), utils.ErrInvalidArgument.Error())
-		return
-	}
-
 	h.log.Info("CreatePR request", slog.String("pr_id", prID), slog.String("author_id", authorID))
 
 	pr, err := h.prService.CreatePR(r.Context(), prID, authorID, req.PullRequestName)

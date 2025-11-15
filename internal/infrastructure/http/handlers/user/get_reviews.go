@@ -24,10 +24,6 @@ type PullRequestShort struct {
 
 func (h *UserHandler) GetReviews(w http.ResponseWriter, r *http.Request) {
 	userID := r.URL.Query().Get("user_id")
-	if userID == "" {
-		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPCodeConverter(http.StatusBadRequest), utils.ErrInvalidUserID.Error())
-		return
-	}
 
 	h.log.Info("GetReviews request", slog.String("user_id", userID))
 
