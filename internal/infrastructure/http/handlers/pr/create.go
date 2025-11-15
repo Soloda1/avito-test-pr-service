@@ -24,17 +24,17 @@ type PRResponse struct {
 func (h *PRHandler) CreatePR(w http.ResponseWriter, r *http.Request) {
 	var req CreatePRRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPStatusToCode(http.StatusBadRequest), "invalid json body")
+		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPStatusToCode(http.StatusBadRequest), err.Error())
 		return
 	}
 	if err := utils.Validate(req); err != nil {
-		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPStatusToCode(http.StatusBadRequest), "validation failed")
+		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPStatusToCode(http.StatusBadRequest), err.Error())
 		return
 	}
 	prID := req.PullRequestID
 	authorID, err := uuid.Parse(req.AuthorID)
 	if err != nil {
-		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPStatusToCode(http.StatusBadRequest), "invalid author_id")
+		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPStatusToCode(http.StatusBadRequest), err.Error())
 		return
 	}
 
@@ -48,14 +48,14 @@ func (h *PRHandler) CreatePR(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, utils.ErrPRExists):
-			_ = utils.WriteError(w, http.StatusConflict, utils.HTTPStatusToCode(http.StatusConflict), "PR id already exists")
+			_ = utils.WriteError(w, http.StatusConflict, utils.HTTPStatusToCode(http.StatusConflict), err.Error())
 			return
 		case errors.Is(err, utils.ErrUserNotFound), errors.Is(err, utils.ErrTeamNotFound):
 			_ = utils.WriteError(w, http.StatusNotFound, utils.HTTPStatusToCode(http.StatusNotFound), err.Error())
 			return
 		default:
 			h.log.Error("CreatePR failed", slog.Any("err", err), slog.String("author_id", authorID.String()))
-			_ = utils.WriteError(w, http.StatusInternalServerError, utils.HTTPStatusToCode(http.StatusInternalServerError), "internal error")
+			_ = utils.WriteError(w, http.StatusInternalServerError, utils.HTTPStatusToCode(http.StatusInternalServerError), err.Error())
 			return
 		}
 	}

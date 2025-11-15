@@ -32,11 +32,11 @@ type AddTeamResponse struct {
 func (h *TeamHandler) AddTeam(w http.ResponseWriter, r *http.Request) {
 	var req AddTeamRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPStatusToCode(http.StatusBadRequest), "invalid json body")
+		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPStatusToCode(http.StatusBadRequest), err.Error())
 		return
 	}
 	if err := utils.Validate(req); err != nil {
-		_ = utils.WriteError(w, http.StatusBadRequest, "BAD_REQUEST", "validation failed")
+		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPStatusToCode(http.StatusBadRequest), err.Error())
 		return
 	}
 
@@ -60,14 +60,14 @@ func (h *TeamHandler) AddTeam(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, utils.ErrAlreadyExists):
-			_ = utils.WriteError(w, http.StatusConflict, "CONFLICT", "team already exists")
+			_ = utils.WriteError(w, http.StatusConflict, "CONFLICT", err.Error())
 			return
 		case errors.Is(err, utils.ErrInvalidArgument):
 			_ = utils.WriteError(w, http.StatusBadRequest, "BAD_REQUEST", err.Error())
 			return
 		default:
 			h.log.Error("AddTeam service failed", slog.String("team_name", req.TeamName), slog.Any("err", err))
-			_ = utils.WriteError(w, http.StatusInternalServerError, "INTERNAL", "internal error")
+			_ = utils.WriteError(w, http.StatusInternalServerError, "INTERNAL", err.Error())
 			return
 		}
 	}

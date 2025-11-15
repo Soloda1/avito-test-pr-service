@@ -20,18 +20,14 @@ type MergePRResponse struct {
 func (h *PRHandler) MergePR(w http.ResponseWriter, r *http.Request) {
 	var req MergePRRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPStatusToCode(http.StatusBadRequest), "invalid json body")
+		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPStatusToCode(http.StatusBadRequest), err.Error())
 		return
 	}
 	if err := utils.Validate(req); err != nil {
-		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPStatusToCode(http.StatusBadRequest), "validation failed")
+		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPStatusToCode(http.StatusBadRequest), err.Error())
 		return
 	}
 	prID := req.PullRequestID
-	if prID == "" {
-		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPStatusToCode(http.StatusBadRequest), "pull_request_id is required")
-		return
-	}
 
 	h.log.Info("MergePR request", slog.String("pr_id", prID))
 
@@ -43,7 +39,7 @@ func (h *PRHandler) MergePR(w http.ResponseWriter, r *http.Request) {
 			return
 		default:
 			h.log.Error("MergePR failed", slog.Any("err", err), slog.String("pr_id", prID))
-			_ = utils.WriteError(w, http.StatusInternalServerError, utils.HTTPStatusToCode(http.StatusInternalServerError), "internal error")
+			_ = utils.WriteError(w, http.StatusInternalServerError, utils.HTTPStatusToCode(http.StatusInternalServerError), err.Error())
 			return
 		}
 	}

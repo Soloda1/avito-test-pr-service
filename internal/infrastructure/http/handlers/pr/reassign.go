@@ -24,18 +24,18 @@ type ReassignPRResponse struct {
 func (h *PRHandler) Reassign(w http.ResponseWriter, r *http.Request) {
 	var req ReassignPRRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPStatusToCode(http.StatusBadRequest), "invalid json body")
+		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPStatusToCode(http.StatusBadRequest), err.Error())
 		return
 	}
 	if err := utils.Validate(req); err != nil {
-		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPStatusToCode(http.StatusBadRequest), "validation failed")
+		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPStatusToCode(http.StatusBadRequest), err.Error())
 		return
 	}
 	prID := req.PullRequestID
 
 	oldID, err := uuid.Parse(req.OldUserID)
 	if err != nil {
-		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPStatusToCode(http.StatusBadRequest), "invalid old_user_id")
+		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPStatusToCode(http.StatusBadRequest), err.Error())
 		return
 	}
 
@@ -62,7 +62,7 @@ func (h *PRHandler) Reassign(w http.ResponseWriter, r *http.Request) {
 			return
 		default:
 			h.log.Error("Reassign failed", slog.Any("err", err), slog.String("pr_id", prID))
-			_ = utils.WriteError(w, http.StatusInternalServerError, utils.HTTPStatusToCode(http.StatusInternalServerError), "internal error")
+			_ = utils.WriteError(w, http.StatusInternalServerError, utils.HTTPStatusToCode(http.StatusInternalServerError), err.Error())
 			return
 		}
 	}
