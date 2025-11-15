@@ -25,7 +25,7 @@ func (_m *TeamRepository) EXPECT() *TeamRepository_Expecter {
 }
 
 // AddMember provides a mock function with given fields: ctx, teamID, userID
-func (_m *TeamRepository) AddMember(ctx context.Context, teamID uuid.UUID, userID uuid.UUID) error {
+func (_m *TeamRepository) AddMember(ctx context.Context, teamID uuid.UUID, userID string) error {
 	ret := _m.Called(ctx, teamID, userID)
 
 	if len(ret) == 0 {
@@ -33,7 +33,7 @@ func (_m *TeamRepository) AddMember(ctx context.Context, teamID uuid.UUID, userI
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) error); ok {
 		r0 = rf(ctx, teamID, userID)
 	} else {
 		r0 = ret.Error(0)
@@ -50,14 +50,14 @@ type TeamRepository_AddMember_Call struct {
 // AddMember is a helper method to define mock.On call
 //   - ctx context.Context
 //   - teamID uuid.UUID
-//   - userID uuid.UUID
+//   - userID string
 func (_e *TeamRepository_Expecter) AddMember(ctx interface{}, teamID interface{}, userID interface{}) *TeamRepository_AddMember_Call {
 	return &TeamRepository_AddMember_Call{Call: _e.mock.On("AddMember", ctx, teamID, userID)}
 }
 
-func (_c *TeamRepository_AddMember_Call) Run(run func(ctx context.Context, teamID uuid.UUID, userID uuid.UUID)) *TeamRepository_AddMember_Call {
+func (_c *TeamRepository_AddMember_Call) Run(run func(ctx context.Context, teamID uuid.UUID, userID string)) *TeamRepository_AddMember_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(uuid.UUID), args[2].(uuid.UUID))
+		run(args[0].(context.Context), args[1].(uuid.UUID), args[2].(string))
 	})
 	return _c
 }
@@ -67,7 +67,7 @@ func (_c *TeamRepository_AddMember_Call) Return(_a0 error) *TeamRepository_AddMe
 	return _c
 }
 
-func (_c *TeamRepository_AddMember_Call) RunAndReturn(run func(context.Context, uuid.UUID, uuid.UUID) error) *TeamRepository_AddMember_Call {
+func (_c *TeamRepository_AddMember_Call) RunAndReturn(run func(context.Context, uuid.UUID, string) error) *TeamRepository_AddMember_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -296,7 +296,7 @@ func (_c *TeamRepository_ListTeams_Call) RunAndReturn(run func(context.Context) 
 }
 
 // RemoveMember provides a mock function with given fields: ctx, teamID, userID
-func (_m *TeamRepository) RemoveMember(ctx context.Context, teamID uuid.UUID, userID uuid.UUID) error {
+func (_m *TeamRepository) RemoveMember(ctx context.Context, teamID uuid.UUID, userID string) error {
 	ret := _m.Called(ctx, teamID, userID)
 
 	if len(ret) == 0 {
@@ -304,7 +304,7 @@ func (_m *TeamRepository) RemoveMember(ctx context.Context, teamID uuid.UUID, us
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) error); ok {
 		r0 = rf(ctx, teamID, userID)
 	} else {
 		r0 = ret.Error(0)
@@ -321,14 +321,14 @@ type TeamRepository_RemoveMember_Call struct {
 // RemoveMember is a helper method to define mock.On call
 //   - ctx context.Context
 //   - teamID uuid.UUID
-//   - userID uuid.UUID
+//   - userID string
 func (_e *TeamRepository_Expecter) RemoveMember(ctx interface{}, teamID interface{}, userID interface{}) *TeamRepository_RemoveMember_Call {
 	return &TeamRepository_RemoveMember_Call{Call: _e.mock.On("RemoveMember", ctx, teamID, userID)}
 }
 
-func (_c *TeamRepository_RemoveMember_Call) Run(run func(ctx context.Context, teamID uuid.UUID, userID uuid.UUID)) *TeamRepository_RemoveMember_Call {
+func (_c *TeamRepository_RemoveMember_Call) Run(run func(ctx context.Context, teamID uuid.UUID, userID string)) *TeamRepository_RemoveMember_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(uuid.UUID), args[2].(uuid.UUID))
+		run(args[0].(context.Context), args[1].(uuid.UUID), args[2].(string))
 	})
 	return _c
 }
@@ -338,7 +338,7 @@ func (_c *TeamRepository_RemoveMember_Call) Return(_a0 error) *TeamRepository_Re
 	return _c
 }
 
-func (_c *TeamRepository_RemoveMember_Call) RunAndReturn(run func(context.Context, uuid.UUID, uuid.UUID) error) *TeamRepository_RemoveMember_Call {
+func (_c *TeamRepository_RemoveMember_Call) RunAndReturn(run func(context.Context, uuid.UUID, string) error) *TeamRepository_RemoveMember_Call {
 	_c.Call.Return(run)
 	return _c
 }

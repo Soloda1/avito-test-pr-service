@@ -38,7 +38,7 @@ func (s *Service) CreatePR(ctx context.Context, prID string, authorID string, ti
 	}()
 
 	userRepo := tx.UserRepository()
-	if _, err := userRepo.GetUserByID(ctx, authorID); err != nil { // will adjust user repo later to string
+	if _, err := userRepo.GetUserByID(ctx, authorID); err != nil {
 		s.log.Error("CreatePR author fetch failed", "err", err, "author_id", authorID)
 		return nil, err
 	}
@@ -53,7 +53,7 @@ func (s *Service) CreatePR(ctx context.Context, prID string, authorID string, ti
 		return nil, err
 	}
 	filtered := utils.FilterStrings(candidates, map[string]struct{}{authorID: {}})
-	selected := s.selector.Select(filtered, 2) // selector needs to operate on []string -> wrap later if needed
+	selected := s.selector.Select(filtered, 2)
 	if selected == nil {
 		selected = []string{}
 	}

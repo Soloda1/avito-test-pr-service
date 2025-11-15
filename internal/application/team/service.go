@@ -59,6 +59,8 @@ func (s *Service) AddMember(ctx context.Context, teamID uuid.UUID, userID uuid.U
 	if teamID == uuid.Nil || userID == uuid.Nil {
 		return utils.ErrInvalidArgument
 	}
+	// конвертируем userID в string
+	userIDStr := userID.String()
 
 	tx, err := s.uow.Begin(ctx)
 	if err != nil {
@@ -79,13 +81,13 @@ func (s *Service) AddMember(ctx context.Context, teamID uuid.UUID, userID uuid.U
 	}
 
 	userrepo := tx.UserRepository()
-	if _, err := userrepo.GetUserByID(ctx, userID); err != nil {
-		s.log.Error("AddMember user fetch failed", "err", err, "user_id", userID, "team_id", teamID)
+	if _, err := userrepo.GetUserByID(ctx, userIDStr); err != nil {
+		s.log.Error("AddMember user fetch failed", "err", err, "user_id", userIDStr, "team_id", teamID)
 		return err
 	}
 
-	if err := teamrepo.AddMember(ctx, teamID, userID); err != nil {
-		s.log.Error("AddMember repo failed", "err", err, "team_id", teamID, "user_id", userID)
+	if err := teamrepo.AddMember(ctx, teamID, userIDStr); err != nil {
+		s.log.Error("AddMember repo failed", "err", err, "team_id", teamID, "user_id", userIDStr)
 		return err
 	}
 
@@ -101,6 +103,7 @@ func (s *Service) RemoveMember(ctx context.Context, teamID uuid.UUID, userID uui
 	if teamID == uuid.Nil || userID == uuid.Nil {
 		return utils.ErrInvalidArgument
 	}
+	userIDStr := userID.String()
 
 	tx, err := s.uow.Begin(ctx)
 	if err != nil {
@@ -122,13 +125,13 @@ func (s *Service) RemoveMember(ctx context.Context, teamID uuid.UUID, userID uui
 	}
 
 	userrepo := tx.UserRepository()
-	if _, err := userrepo.GetUserByID(ctx, userID); err != nil {
-		s.log.Error("RemoveMember user fetch failed", "err", err, "user_id", userID, "team_id", teamID)
+	if _, err := userrepo.GetUserByID(ctx, userIDStr); err != nil {
+		s.log.Error("RemoveMember user fetch failed", "err", err, "user_id", userIDStr, "team_id", teamID)
 		return err
 	}
 
-	if err := teamrepo.RemoveMember(ctx, teamID, userID); err != nil {
-		s.log.Error("RemoveMember repo failed", "err", err, "team_id", teamID, "user_id", userID)
+	if err := teamrepo.RemoveMember(ctx, teamID, userIDStr); err != nil {
+		s.log.Error("RemoveMember repo failed", "err", err, "team_id", teamID, "user_id", userIDStr)
 		return err
 	}
 
@@ -203,14 +206,15 @@ func (s *Service) CreateTeamWithMembers(ctx context.Context, name string, member
 	}
 
 	userRepo := tx.UserRepository()
-
 	var resultUsers []*models.User
 	for _, memberSpec := range members {
 		processedUser, err := s.processTeamMember(ctx, userRepo, memberSpec)
 		if err != nil {
 			return nil, nil, err
 		}
-
+		if processedUser.ID == "" {
+			return nil, nil, utils.ErrInvalidArgument
+		}
 		if err := teamRepo.AddMember(ctx, team.ID, processedUser.ID); err != nil {
 			if !errors.Is(err, utils.ErrAlreadyExists) {
 				s.log.Error("CreateTeamWithMembers add member failed", "err", err, "team_id", team.ID, "user_id", processedUser.ID)
@@ -224,43 +228,31 @@ func (s *Service) CreateTeamWithMembers(ctx context.Context, name string, member
 		s.log.Error("CreateTeamWithMembers commit failed", "err", err, "team_id", team.ID)
 		return nil, nil, err
 	}
-
 	commit = true
 	s.log.Info("CreateTeamWithMembers success", "team_id", team.ID, "name", team.Name, "members_count", len(resultUsers))
 	return team, resultUsers, nil
 }
 
 func (s *Service) processTeamMember(ctx context.Context, userRepo user_port.UserRepository, member *models.User) (*models.User, error) {
-	if member.ID == uuid.Nil {
-		member.ID = uuid.New()
-		if err := userRepo.CreateUser(ctx, member); err != nil {
-			if errors.Is(err, utils.ErrUserExists) {
-				s.log.Info("processTeamMember detected concurrent user create (generated id)", "user_id", member.ID)
-				if existing, gerr := userRepo.GetUserByID(ctx, member.ID); gerr == nil {
-					return existing, nil
-				}
-				s.log.Error("processTeamMember fetch after conflict failed", "err", err, "user_id", member.ID)
-				return nil, err
-			}
-			s.log.Error("processTeamMember create new user failed", "err", err, "username", member.Name)
-			return nil, err
-		}
-		return member, nil
+	// Новый пользователь: ID должен быть задан внешне (string). Если пустой -> ошибка.
+	if member.ID == "" {
+		return nil, utils.ErrInvalidArgument
 	}
 
 	existingUser, err := userRepo.GetUserByID(ctx, member.ID)
 	if err != nil {
 		if errors.Is(err, utils.ErrUserNotFound) {
+			// Пытаемся создать
 			if err := userRepo.CreateUser(ctx, member); err != nil {
 				if errors.Is(err, utils.ErrUserExists) {
-					s.log.Info("processTeamMember detected concurrent user create (provided id)", "user_id", member.ID)
+					// Конкурентное создание: читаем
 					if existing, gerr := userRepo.GetUserByID(ctx, member.ID); gerr == nil {
 						return existing, nil
 					}
 					s.log.Error("processTeamMember fetch after conflict failed", "err", err, "user_id", member.ID)
 					return nil, err
 				}
-				s.log.Error("processTeamMember create user with id failed", "err", err, "user_id", member.ID)
+				s.log.Error("processTeamMember create user failed", "err", err, "user_id", member.ID)
 				return nil, err
 			}
 			return member, nil
@@ -273,12 +265,7 @@ func (s *Service) processTeamMember(ctx context.Context, userRepo user_port.User
 }
 
 func (s *Service) updateExistingUser(ctx context.Context, userRepo user_port.UserRepository, existing *models.User, spec *models.User) (*models.User, error) {
-	updatedUser := &models.User{
-		ID:       existing.ID,
-		Name:     existing.Name,
-		IsActive: existing.IsActive,
-	}
-
+	updatedUser := &models.User{ID: existing.ID, Name: existing.Name, IsActive: existing.IsActive}
 	if spec.IsActive != existing.IsActive {
 		if err := userRepo.UpdateUserActive(ctx, existing.ID, spec.IsActive); err != nil {
 			s.log.Error("updateExistingUser update active failed", "err", err, "user_id", existing.ID)
@@ -286,7 +273,6 @@ func (s *Service) updateExistingUser(ctx context.Context, userRepo user_port.Use
 		}
 		updatedUser.IsActive = spec.IsActive
 	}
-
 	if spec.Name != "" && spec.Name != existing.Name {
 		if err := userRepo.UpdateUserName(ctx, existing.ID, spec.Name); err != nil {
 			s.log.Error("updateExistingUser update name failed", "err", err, "user_id", existing.ID)
@@ -294,7 +280,6 @@ func (s *Service) updateExistingUser(ctx context.Context, userRepo user_port.Use
 		}
 		updatedUser.Name = spec.Name
 	}
-
 	return updatedUser, nil
 }
 

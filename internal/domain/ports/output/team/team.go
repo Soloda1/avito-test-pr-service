@@ -14,6 +14,6 @@ type TeamRepository interface {
 	GetTeamByID(ctx context.Context, id uuid.UUID) (*models.Team, error)
 	GetTeamByName(ctx context.Context, name string) (*models.Team, error)
 	ListTeams(ctx context.Context) ([]*models.Team, error)
-	AddMember(ctx context.Context, teamID uuid.UUID, userID uuid.UUID) error
-	RemoveMember(ctx context.Context, teamID uuid.UUID, userID uuid.UUID) error
+	AddMember(ctx context.Context, teamID uuid.UUID, userID string) error
+	RemoveMember(ctx context.Context, teamID uuid.UUID, userID string) error
 }
