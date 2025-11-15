@@ -47,31 +47,16 @@ func (h *TeamHandler) GetTeam(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	users, err := h.userService.ListUsers(r.Context())
+	membersUsers, err := h.userService.ListMembersByTeamID(r.Context(), team.ID)
 	if err != nil {
-		h.log.Error("GetTeam list users failed", "err", err, "team_name", req.TeamName)
+		h.log.Error("GetTeam list members by team failed", "err", err, "team_id", team.ID)
 		_ = utils.WriteError(w, http.StatusInternalServerError, utils.HTTPStatusToCode(http.StatusInternalServerError), "internal error")
 		return
 	}
 
-	members := make([]GetTeamMember, 0)
-	for _, u := range users {
-		teamName, err := h.userService.GetUserTeamName(r.Context(), u.ID)
-		if err != nil {
-			if errors.Is(err, utils.ErrUserNoTeam) || errors.Is(err, utils.ErrTeamNotFound) {
-				continue
-			}
-			h.log.Error("GetTeam get user team failed", "err", err, "user_id", u.ID)
-			_ = utils.WriteError(w, http.StatusInternalServerError, utils.HTTPStatusToCode(http.StatusInternalServerError), "internal error")
-			return
-		}
-		if teamName == team.Name {
-			members = append(members, GetTeamMember{
-				UserID:   u.ID.String(),
-				Username: u.Name,
-				IsActive: u.IsActive,
-			})
-		}
+	members := make([]GetTeamMember, 0, len(membersUsers))
+	for _, u := range membersUsers {
+		members = append(members, GetTeamMember{UserID: u.ID.String(), Username: u.Name, IsActive: u.IsActive})
 	}
 
 	resp := GetTeamResponse{TeamName: team.Name, Members: members}
