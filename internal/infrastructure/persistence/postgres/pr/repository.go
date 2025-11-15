@@ -186,15 +186,15 @@ func (r *PRRepository) AddReviewer(ctx context.Context, prID string, reviewerID 
 			case "23505":
 				return utils.ErrReviewerAlreadyAssigned
 			case "23503":
+				cn := strings.ToLower(pgErr.ConstraintName)
 
-				switch strings.ToLower(pgErr.TableName) {
-				case "users":
-					return utils.ErrUserNotFound
-				case "prs":
+				if strings.Contains(cn, "pr_id") {
 					return utils.ErrPRNotFound
-				default:
-					return utils.ErrInvalidArgument
 				}
+				if strings.Contains(cn, "reviewer_id") || strings.Contains(cn, "user") || strings.Contains(cn, "reviewer") {
+					return utils.ErrUserNotFound
+				}
+				return utils.ErrInvalidArgument
 			case "22P02":
 				return utils.ErrInvalidArgument
 			}
@@ -266,17 +266,23 @@ func (r *PRRepository) UpdateStatus(ctx context.Context, prID string, status mod
 }
 
 func (r *PRRepository) ListPRsByReviewer(ctx context.Context, reviewerID string, status *models.PRStatus) ([]*models.PullRequest, error) {
-	const q = `
-		SELECT p.id, p.title, p.author_id, p.status, p.created_at, p.merged_at, p.updated_at,
-		       COALESCE(array_agg(r.reviewer_id ORDER BY r.assigned_at) FILTER (WHERE r.reviewer_id IS NOT NULL), '{}') AS reviewers
+
+	base := `SELECT p.id, p.title, p.author_id, p.status, p.created_at, p.merged_at, p.updated_at,
+		COALESCE(array_agg(r_all.reviewer_id ORDER BY r_all.assigned_at) FILTER (WHERE r_all.reviewer_id IS NOT NULL), '{}') AS reviewers
 		FROM prs p
-		LEFT JOIN pr_reviewers r ON p.id = r.pr_id
-		WHERE (@status IS NULL OR p.status = @status)
-		GROUP BY p.id, p.title, p.author_id, p.status, p.created_at, p.merged_at, p.updated_at
-		HAVING @reviewer_id = ANY(array_agg(r.reviewer_id))
-		ORDER BY p.created_at DESC;
-	`
-	rows, err := r.querier.Query(ctx, q, pgx.NamedArgs{"reviewer_id": reviewerID, "status": status})
+		JOIN pr_reviewers r_filter ON p.id = r_filter.pr_id AND r_filter.reviewer_id = @reviewer_id
+		LEFT JOIN pr_reviewers r_all ON p.id = r_all.pr_id`
+	if status != nil {
+		base += ` WHERE p.status = @status`
+	}
+	base += ` GROUP BY p.id, p.title, p.author_id, p.status, p.created_at, p.merged_at, p.updated_at
+		ORDER BY p.created_at DESC;`
+
+	args := pgx.NamedArgs{"reviewer_id": reviewerID}
+	if status != nil {
+		args["status"] = *status
+	}
+	rows, err := r.querier.Query(ctx, base, args)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "22P02" {
