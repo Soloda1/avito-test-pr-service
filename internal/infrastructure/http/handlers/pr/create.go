@@ -31,9 +31,9 @@ func (h *PRHandler) CreatePR(w http.ResponseWriter, r *http.Request) {
 		_ = utils.WriteError(w, http.StatusBadRequest, "BAD_REQUEST", "validation failed")
 		return
 	}
-	prID, err := uuid.Parse(req.PullRequestID)
-	if err != nil {
-		_ = utils.WriteError(w, http.StatusBadRequest, "BAD_REQUEST", "invalid pull_request_id")
+	prID := req.PullRequestID
+	if prID == "" {
+		_ = utils.WriteError(w, http.StatusBadRequest, "BAD_REQUEST", "pull_request_id is required")
 		return
 	}
 	authorID, err := uuid.Parse(req.AuthorID)
@@ -42,7 +42,7 @@ func (h *PRHandler) CreatePR(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.log.Info("CreatePR request", slog.String("pr_id", prID.String()), slog.String("author_id", authorID.String()))
+	h.log.Info("CreatePR request", slog.String("pr_id", prID), slog.String("author_id", authorID.String()))
 
 	pr, err := h.prService.CreatePR(r.Context(), prID, authorID, req.PullRequestName)
 	if err != nil {

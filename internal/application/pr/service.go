@@ -23,8 +23,8 @@ func NewService(uow uow.UnitOfWork, selector services.ReviewerSelector, log port
 	return &Service{uow: uow, selector: selector, log: log}
 }
 
-func (s *Service) CreatePR(ctx context.Context, prID uuid.UUID, authorID uuid.UUID, title string) (*models.PullRequest, error) {
-	if prID == uuid.Nil || authorID == uuid.Nil || title == "" {
+func (s *Service) CreatePR(ctx context.Context, prID string, authorID uuid.UUID, title string) (*models.PullRequest, error) {
+	if prID == "" || authorID == uuid.Nil || title == "" {
 		return nil, utils.ErrInvalidArgument
 	}
 
@@ -90,8 +90,8 @@ func (s *Service) CreatePR(ctx context.Context, prID uuid.UUID, authorID uuid.UU
 	return pr, nil
 }
 
-func (s *Service) ReassignReviewer(ctx context.Context, prID uuid.UUID, oldReviewerID uuid.UUID) (*models.PullRequest, error) {
-	if prID == uuid.Nil || oldReviewerID == uuid.Nil {
+func (s *Service) ReassignReviewer(ctx context.Context, prID string, oldReviewerID uuid.UUID) (*models.PullRequest, error) {
+	if prID == "" || oldReviewerID == uuid.Nil {
 		return nil, utils.ErrInvalidArgument
 	}
 	tx, err := s.uow.Begin(ctx)
@@ -171,8 +171,8 @@ func (s *Service) ReassignReviewer(ctx context.Context, prID uuid.UUID, oldRevie
 	return updatedPR, nil
 }
 
-func (s *Service) MergePR(ctx context.Context, prID uuid.UUID) (*models.PullRequest, error) {
-	if prID == uuid.Nil {
+func (s *Service) MergePR(ctx context.Context, prID string) (*models.PullRequest, error) {
+	if prID == "" {
 		return nil, utils.ErrInvalidArgument
 	}
 	tx, err := s.uow.Begin(ctx)
@@ -219,8 +219,8 @@ func (s *Service) MergePR(ctx context.Context, prID uuid.UUID) (*models.PullRequ
 	return pr, nil
 }
 
-func (s *Service) GetPR(ctx context.Context, prID uuid.UUID) (*models.PullRequest, error) {
-	if prID == uuid.Nil {
+func (s *Service) GetPR(ctx context.Context, prID string) (*models.PullRequest, error) {
+	if prID == "" {
 		return nil, utils.ErrInvalidArgument
 	}
 	tx, err := s.uow.Begin(ctx)
