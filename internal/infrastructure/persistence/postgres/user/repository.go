@@ -24,11 +24,8 @@ func NewUserRepository(querier postgres.Querier, log ports.Logger) user_port.Use
 }
 
 func (r *UserRepository) CreateUser(ctx context.Context, user *models.User) error {
-	if user.Name == "" {
+	if user.Name == "" || user.ID == "" {
 		return utils.ErrInvalidArgument
-	}
-	if user.ID == uuid.Nil {
-		user.ID = uuid.New()
 	}
 	const q = `
 		INSERT INTO users (id, name, is_active, created_at, updated_at)
@@ -51,7 +48,7 @@ func (r *UserRepository) CreateUser(ctx context.Context, user *models.User) erro
 	return nil
 }
 
-func (r *UserRepository) GetUserByID(ctx context.Context, id uuid.UUID) (*models.User, error) {
+func (r *UserRepository) GetUserByID(ctx context.Context, id string) (*models.User, error) {
 	const q = `
 		SELECT id, name, is_active, created_at, updated_at
 		FROM users
@@ -69,7 +66,7 @@ func (r *UserRepository) GetUserByID(ctx context.Context, id uuid.UUID) (*models
 	return &u, nil
 }
 
-func (r *UserRepository) UpdateUserActive(ctx context.Context, id uuid.UUID, isActive bool) error {
+func (r *UserRepository) UpdateUserActive(ctx context.Context, id string, isActive bool) error {
 	const q = `
 		UPDATE users
 		SET is_active = @is_active,
@@ -78,7 +75,7 @@ func (r *UserRepository) UpdateUserActive(ctx context.Context, id uuid.UUID, isA
 		RETURNING id;
 	`
 	row := r.querier.QueryRow(ctx, q, pgx.NamedArgs{"is_active": isActive, "id": id})
-	var returnedID uuid.UUID
+	var returnedID string
 	if err := row.Scan(&returnedID); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return utils.ErrUserNotFound
@@ -127,7 +124,7 @@ func (r *UserRepository) ListUsers(ctx context.Context) ([]*models.User, error) 
 	return res, nil
 }
 
-func (r *UserRepository) GetTeamIDByUserID(ctx context.Context, userID uuid.UUID) (uuid.UUID, error) {
+func (r *UserRepository) GetTeamIDByUserID(ctx context.Context, userID string) (uuid.UUID, error) {
 	const q = `
 		SELECT team_id
 		FROM team_members
@@ -150,7 +147,7 @@ func (r *UserRepository) GetTeamIDByUserID(ctx context.Context, userID uuid.UUID
 	return teamID, nil
 }
 
-func (r *UserRepository) ListActiveMembersByTeamID(ctx context.Context, teamID uuid.UUID) ([]uuid.UUID, error) {
+func (r *UserRepository) ListActiveMembersByTeamID(ctx context.Context, teamID uuid.UUID) ([]string, error) {
 	const q = `
 		SELECT u.id
 		FROM users u
@@ -167,9 +164,9 @@ func (r *UserRepository) ListActiveMembersByTeamID(ctx context.Context, teamID u
 		return nil, err
 	}
 	defer rows.Close()
-	var ids []uuid.UUID
+	var ids []string
 	for rows.Next() {
-		var id uuid.UUID
+		var id string
 		if err := rows.Scan(&id); err != nil {
 			var pgErr *pgconn.PgError
 			if errors.As(err, &pgErr) {
@@ -186,7 +183,7 @@ func (r *UserRepository) ListActiveMembersByTeamID(ctx context.Context, teamID u
 	return ids, nil
 }
 
-func (r *UserRepository) UpdateUserName(ctx context.Context, id uuid.UUID, name string) error {
+func (r *UserRepository) UpdateUserName(ctx context.Context, id string, name string) error {
 	const q = `
 		UPDATE users
 		SET name = @name,
@@ -195,7 +192,7 @@ func (r *UserRepository) UpdateUserName(ctx context.Context, id uuid.UUID, name 
 		RETURNING id;
 	`
 	row := r.querier.QueryRow(ctx, q, pgx.NamedArgs{"id": id, "name": name})
-	var out uuid.UUID
+	var out string
 	if err := row.Scan(&out); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return utils.ErrUserNotFound

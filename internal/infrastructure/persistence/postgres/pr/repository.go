@@ -10,7 +10,6 @@ import (
 	"errors"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 )
@@ -25,7 +24,7 @@ func NewPRRepository(querier postgres.Querier, log ports.Logger) pr_port.PRRepos
 }
 
 func (r *PRRepository) CreatePR(ctx context.Context, pr *models.PullRequest) error {
-	if pr.Title == "" || pr.AuthorID == uuid.Nil || pr.ID == "" {
+	if pr.Title == "" || pr.AuthorID == "" || pr.ID == "" {
 		return utils.ErrInvalidArgument
 	}
 	const insertPR = `
@@ -43,7 +42,7 @@ func (r *PRRepository) CreatePR(ctx context.Context, pr *models.PullRequest) err
 		return err
 	}
 	for _, reviewerID := range pr.ReviewerIDs {
-		if reviewerID == uuid.Nil {
+		if reviewerID == "" {
 			continue
 		}
 		if err := r.AddReviewer(ctx, pr.ID, reviewerID); err != nil {
@@ -53,7 +52,7 @@ func (r *PRRepository) CreatePR(ctx context.Context, pr *models.PullRequest) err
 	return nil
 }
 
-func (r *PRRepository) loadReviewers(ctx context.Context, prID string) ([]uuid.UUID, error) {
+func (r *PRRepository) loadReviewers(ctx context.Context, prID string) ([]string, error) {
 	const q = `
 		SELECT reviewer_id
 		FROM pr_reviewers
@@ -66,9 +65,9 @@ func (r *PRRepository) loadReviewers(ctx context.Context, prID string) ([]uuid.U
 		return nil, err
 	}
 	defer rows.Close()
-	var ids []uuid.UUID
+	var ids []string
 	for rows.Next() {
-		var id uuid.UUID
+		var id string
 		if err := rows.Scan(&id); err != nil {
 			r.log.Error("loadReviewers scan failed", "pr_id", prID, "err", err)
 			return nil, err
@@ -143,7 +142,7 @@ func (r *PRRepository) CountReviewersByPRID(ctx context.Context, prID string) (i
 	return c, nil
 }
 
-func (r *PRRepository) AddReviewer(ctx context.Context, prID string, reviewerID uuid.UUID) error {
+func (r *PRRepository) AddReviewer(ctx context.Context, prID string, reviewerID string) error {
 	count, err := r.CountReviewersByPRID(ctx, prID)
 	if err != nil {
 		return err
@@ -176,7 +175,7 @@ func (r *PRRepository) AddReviewer(ctx context.Context, prID string, reviewerID 
 	return nil
 }
 
-func (r *PRRepository) RemoveReviewer(ctx context.Context, prID string, reviewerID uuid.UUID) error {
+func (r *PRRepository) RemoveReviewer(ctx context.Context, prID string, reviewerID string) error {
 	const q = `
 		DELETE FROM pr_reviewers
 		WHERE pr_id = @pr_id AND reviewer_id = @reviewer_id
@@ -236,7 +235,7 @@ func (r *PRRepository) UpdateStatus(ctx context.Context, prID string, status mod
 	return nil
 }
 
-func (r *PRRepository) ListPRsByReviewer(ctx context.Context, reviewerID uuid.UUID, status *models.PRStatus) ([]*models.PullRequest, error) {
+func (r *PRRepository) ListPRsByReviewer(ctx context.Context, reviewerID string, status *models.PRStatus) ([]*models.PullRequest, error) {
 	const q = `
 		SELECT p.id, p.title, p.author_id, p.status, p.created_at, p.merged_at, p.updated_at
 		FROM prs p
