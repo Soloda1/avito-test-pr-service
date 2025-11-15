@@ -28,17 +28,17 @@ func (h *PRHandler) Reassign(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := utils.Validate(req); err != nil {
-		_ = utils.WriteError(w, http.StatusBadRequest, "BAD_REQUEST", "validation failed")
+		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPStatusToCode(http.StatusBadRequest), "validation failed")
 		return
 	}
 	prID := req.PullRequestID
 	if prID == "" {
-		_ = utils.WriteError(w, http.StatusBadRequest, "BAD_REQUEST", "pull_request_id is required")
+		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPStatusToCode(http.StatusBadRequest), "pull_request_id is required")
 		return
 	}
 	oldID, err := uuid.Parse(req.OldUserID)
 	if err != nil {
-		_ = utils.WriteError(w, http.StatusBadRequest, "BAD_REQUEST", "invalid old_user_id")
+		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPStatusToCode(http.StatusBadRequest), "invalid old_user_id")
 		return
 	}
 
@@ -48,26 +48,26 @@ func (h *PRHandler) Reassign(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, utils.ErrPRNotFound) || errors.Is(err, utils.ErrUserNotFound):
-			_ = utils.WriteError(w, http.StatusNotFound, "NOT_FOUND", err.Error())
+			_ = utils.WriteError(w, http.StatusNotFound, utils.HTTPStatusToCode(http.StatusNotFound), err.Error())
 			return
 		case errors.Is(err, utils.ErrAlreadyMerged), errors.Is(err, utils.ErrReviewerNotAssigned), errors.Is(err, utils.ErrNoReplacementCandidates):
 			code := http.StatusConflict
 			if errors.Is(err, utils.ErrAlreadyMerged) {
-				_ = utils.WriteError(w, code, "PR_MERGED", err.Error())
+				_ = utils.WriteError(w, code, utils.HTTPStatusToCode(code), err.Error())
 				return
 			}
 			if errors.Is(err, utils.ErrReviewerNotAssigned) {
-				_ = utils.WriteError(w, code, "NOT_ASSIGNED", err.Error())
+				_ = utils.WriteError(w, code, utils.HTTPStatusToCode(code), err.Error())
 				return
 			}
 			if errors.Is(err, utils.ErrNoReplacementCandidates) {
-				_ = utils.WriteError(w, code, "NO_CANDIDATE", err.Error())
+				_ = utils.WriteError(w, code, utils.HTTPStatusToCode(code), err.Error())
 				return
 			}
 			return
 		default:
 			h.log.Error("Reassign failed", slog.Any("err", err), slog.String("pr_id", prID))
-			_ = utils.WriteError(w, http.StatusInternalServerError, "INTERNAL", "internal error")
+			_ = utils.WriteError(w, http.StatusInternalServerError, utils.HTTPStatusToCode(http.StatusInternalServerError), "internal error")
 			return
 		}
 	}

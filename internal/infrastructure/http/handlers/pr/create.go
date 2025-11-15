@@ -28,13 +28,13 @@ func (h *PRHandler) CreatePR(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := utils.Validate(req); err != nil {
-		_ = utils.WriteError(w, http.StatusBadRequest, "BAD_REQUEST", "validation failed")
+		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPStatusToCode(http.StatusBadRequest), "validation failed")
 		return
 	}
 	prID := req.PullRequestID
 	authorID, err := uuid.Parse(req.AuthorID)
 	if err != nil {
-		_ = utils.WriteError(w, http.StatusBadRequest, "BAD_REQUEST", "invalid author_id")
+		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPStatusToCode(http.StatusBadRequest), "invalid author_id")
 		return
 	}
 
@@ -48,14 +48,14 @@ func (h *PRHandler) CreatePR(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, utils.ErrPRExists):
-			_ = utils.WriteError(w, http.StatusConflict, "PR_EXISTS", "PR id already exists")
+			_ = utils.WriteError(w, http.StatusConflict, utils.HTTPStatusToCode(http.StatusConflict), "PR id already exists")
 			return
 		case errors.Is(err, utils.ErrUserNotFound), errors.Is(err, utils.ErrTeamNotFound):
-			_ = utils.WriteError(w, http.StatusNotFound, "NOT_FOUND", err.Error())
+			_ = utils.WriteError(w, http.StatusNotFound, utils.HTTPStatusToCode(http.StatusNotFound), err.Error())
 			return
 		default:
 			h.log.Error("CreatePR failed", slog.Any("err", err), slog.String("author_id", authorID.String()))
-			_ = utils.WriteError(w, http.StatusInternalServerError, "INTERNAL", "internal error")
+			_ = utils.WriteError(w, http.StatusInternalServerError, utils.HTTPStatusToCode(http.StatusInternalServerError), "internal error")
 			return
 		}
 	}

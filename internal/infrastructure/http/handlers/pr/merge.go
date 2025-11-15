@@ -24,12 +24,12 @@ func (h *PRHandler) MergePR(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := utils.Validate(req); err != nil {
-		_ = utils.WriteError(w, http.StatusBadRequest, "BAD_REQUEST", "validation failed")
+		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPStatusToCode(http.StatusBadRequest), "validation failed")
 		return
 	}
 	prID := req.PullRequestID
 	if prID == "" {
-		_ = utils.WriteError(w, http.StatusBadRequest, "BAD_REQUEST", "pull_request_id is required")
+		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPStatusToCode(http.StatusBadRequest), "pull_request_id is required")
 		return
 	}
 
@@ -39,11 +39,11 @@ func (h *PRHandler) MergePR(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, utils.ErrPRNotFound):
-			_ = utils.WriteError(w, http.StatusNotFound, "NOT_FOUND", err.Error())
+			_ = utils.WriteError(w, http.StatusNotFound, utils.HTTPStatusToCode(http.StatusNotFound), err.Error())
 			return
 		default:
 			h.log.Error("MergePR failed", slog.Any("err", err), slog.String("pr_id", prID))
-			_ = utils.WriteError(w, http.StatusInternalServerError, "INTERNAL", "internal error")
+			_ = utils.WriteError(w, http.StatusInternalServerError, utils.HTTPStatusToCode(http.StatusInternalServerError), "internal error")
 			return
 		}
 	}
