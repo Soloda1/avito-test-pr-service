@@ -76,7 +76,6 @@ func TestPRRepository_Integration(t *testing.T) {
 		}
 	})
 
-	// GetPRByID
 	t.Run("GetPRByID success", func(t *testing.T) {
 		truncate(t)
 		insertUser(t, "u-author", "author", true)
@@ -102,7 +101,6 @@ func TestPRRepository_Integration(t *testing.T) {
 		}
 	})
 
-	// AddReviewer
 	t.Run("AddReviewer success", func(t *testing.T) {
 		truncate(t)
 		insertUser(t, "u-author", "author", true)
@@ -115,7 +113,10 @@ func TestPRRepository_Integration(t *testing.T) {
 		if err := repo.AddReviewer(ctx, "pr-1", "u-r2"); err != nil {
 			t.Fatalf("AddReviewer: %v", err)
 		}
-		got, _ := repo.GetPRByID(ctx, "pr-1")
+		got, err := repo.GetPRByID(ctx, "pr-1")
+		if err != nil {
+			t.Fatalf("GetPRByID: %v", err)
+		}
 		if len(got.ReviewerIDs) != 2 {
 			t.Fatalf("expected 2 reviewers, got %d", len(got.ReviewerIDs))
 		}
@@ -173,7 +174,6 @@ func TestPRRepository_Integration(t *testing.T) {
 		}
 	})
 
-	// RemoveReviewer
 	t.Run("RemoveReviewer success", func(t *testing.T) {
 		truncate(t)
 		insertUser(t, "u-author", "author", true)
@@ -185,7 +185,10 @@ func TestPRRepository_Integration(t *testing.T) {
 		if err := repo.RemoveReviewer(ctx, "pr-1", "u-r1"); err != nil {
 			t.Fatalf("RemoveReviewer: %v", err)
 		}
-		got, _ := repo.GetPRByID(ctx, "pr-1")
+		got, err := repo.GetPRByID(ctx, "pr-1")
+		if err != nil {
+			t.Fatalf("get PR: %v", err)
+		}
 		if len(got.ReviewerIDs) != 0 {
 			t.Fatalf("expected 0 reviewers got %d", len(got.ReviewerIDs))
 		}
@@ -204,7 +207,6 @@ func TestPRRepository_Integration(t *testing.T) {
 		}
 	})
 
-	// UpdateStatus
 	t.Run("UpdateStatus merge success", func(t *testing.T) {
 		truncate(t)
 		insertUser(t, "u-author", "author", true)
@@ -216,7 +218,10 @@ func TestPRRepository_Integration(t *testing.T) {
 		if err := repo.UpdateStatus(ctx, "pr-1", models.PRStatusMERGED, &mergedAt); err != nil {
 			t.Fatalf("UpdateStatus: %v", err)
 		}
-		got, _ := repo.GetPRByID(ctx, "pr-1")
+		got, err := repo.GetPRByID(ctx, "pr-1")
+		if err != nil {
+			t.Fatalf("GetPRByID: %v", err)
+		}
 		if got.Status != models.PRStatusMERGED || got.MergedAt == nil {
 			t.Fatalf("expected merged, got %+v", got)
 		}
@@ -255,7 +260,6 @@ func TestPRRepository_Integration(t *testing.T) {
 		}
 	})
 
-	// ListPRsByReviewer
 	t.Run("ListPRsByReviewer success and filter", func(t *testing.T) {
 		truncate(t)
 		insertUser(t, "u-author", "author", true)

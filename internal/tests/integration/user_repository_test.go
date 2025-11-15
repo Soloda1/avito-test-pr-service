@@ -59,7 +59,10 @@ func TestUserRepository_Integration(t *testing.T) {
 		if err := repo.UpdateUserName(ctx, "u1", "Alice"); err != nil {
 			t.Fatalf("update name: %v", err)
 		}
-		got, _ := repo.GetUserByID(ctx, "u1")
+		got, err := repo.GetUserByID(ctx, "u1")
+		if err != nil {
+			t.Fatalf("get: %v", err)
+		}
 		if got.IsActive != false || got.Name != "Alice" {
 			t.Fatalf("unexpected user: %+v", got)
 		}
@@ -69,8 +72,12 @@ func TestUserRepository_Integration(t *testing.T) {
 		if err := TruncateAll(ctx, pgC.Pool); err != nil {
 			t.Fatalf("truncate: %v", err)
 		}
-		_ = repo.CreateUser(ctx, &models.User{ID: "u1", Name: "a", IsActive: true})
-		_ = repo.CreateUser(ctx, &models.User{ID: "u2", Name: "b", IsActive: false})
+		if err := repo.CreateUser(ctx, &models.User{ID: "u1", Name: "a", IsActive: true}); err != nil {
+			t.Fatalf("create user u1: %v", err)
+		}
+		if err := repo.CreateUser(ctx, &models.User{ID: "u2", Name: "b", IsActive: false}); err != nil {
+			t.Fatalf("create user u2: %v", err)
+		}
 		list, err := repo.ListUsers(ctx)
 		if err != nil {
 			t.Fatalf("list: %v", err)
@@ -94,8 +101,12 @@ func TestUserRepository_Integration(t *testing.T) {
 			t.Fatalf("select team: %v", err)
 		}
 
-		_ = repo.CreateUser(ctx, &models.User{ID: "u1", Name: "a", IsActive: true})
-		_ = repo.CreateUser(ctx, &models.User{ID: "u2", Name: "b", IsActive: false})
+		if err := repo.CreateUser(ctx, &models.User{ID: "u1", Name: "a", IsActive: true}); err != nil {
+			t.Fatalf("create user u1: %v", err)
+		}
+		if err := repo.CreateUser(ctx, &models.User{ID: "u2", Name: "b", IsActive: false}); err != nil {
+			t.Fatalf("create user u2: %v", err)
+		}
 		_, err = pgC.Pool.Exec(ctx, `INSERT INTO team_members(team_id, user_id) VALUES ($1, $2), ($1, $3)`, teamID, "u1", "u2")
 		if err != nil {
 			t.Fatalf("seed members: %v", err)
