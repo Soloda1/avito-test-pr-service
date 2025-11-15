@@ -27,7 +27,7 @@ func (_m *PRRepository) EXPECT() *PRRepository_Expecter {
 }
 
 // AddReviewer provides a mock function with given fields: ctx, prID, reviewerID
-func (_m *PRRepository) AddReviewer(ctx context.Context, prID uuid.UUID, reviewerID uuid.UUID) error {
+func (_m *PRRepository) AddReviewer(ctx context.Context, prID string, reviewerID uuid.UUID) error {
 	ret := _m.Called(ctx, prID, reviewerID)
 
 	if len(ret) == 0 {
@@ -35,7 +35,7 @@ func (_m *PRRepository) AddReviewer(ctx context.Context, prID uuid.UUID, reviewe
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string, uuid.UUID) error); ok {
 		r0 = rf(ctx, prID, reviewerID)
 	} else {
 		r0 = ret.Error(0)
@@ -51,15 +51,15 @@ type PRRepository_AddReviewer_Call struct {
 
 // AddReviewer is a helper method to define mock.On call
 //   - ctx context.Context
-//   - prID uuid.UUID
+//   - prID string
 //   - reviewerID uuid.UUID
 func (_e *PRRepository_Expecter) AddReviewer(ctx interface{}, prID interface{}, reviewerID interface{}) *PRRepository_AddReviewer_Call {
 	return &PRRepository_AddReviewer_Call{Call: _e.mock.On("AddReviewer", ctx, prID, reviewerID)}
 }
 
-func (_c *PRRepository_AddReviewer_Call) Run(run func(ctx context.Context, prID uuid.UUID, reviewerID uuid.UUID)) *PRRepository_AddReviewer_Call {
+func (_c *PRRepository_AddReviewer_Call) Run(run func(ctx context.Context, prID string, reviewerID uuid.UUID)) *PRRepository_AddReviewer_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(uuid.UUID), args[2].(uuid.UUID))
+		run(args[0].(context.Context), args[1].(string), args[2].(uuid.UUID))
 	})
 	return _c
 }
@@ -69,13 +69,13 @@ func (_c *PRRepository_AddReviewer_Call) Return(_a0 error) *PRRepository_AddRevi
 	return _c
 }
 
-func (_c *PRRepository_AddReviewer_Call) RunAndReturn(run func(context.Context, uuid.UUID, uuid.UUID) error) *PRRepository_AddReviewer_Call {
+func (_c *PRRepository_AddReviewer_Call) RunAndReturn(run func(context.Context, string, uuid.UUID) error) *PRRepository_AddReviewer_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // CountReviewersByPRID provides a mock function with given fields: ctx, prID
-func (_m *PRRepository) CountReviewersByPRID(ctx context.Context, prID uuid.UUID) (int, error) {
+func (_m *PRRepository) CountReviewersByPRID(ctx context.Context, prID string) (int, error) {
 	ret := _m.Called(ctx, prID)
 
 	if len(ret) == 0 {
@@ -84,16 +84,16 @@ func (_m *PRRepository) CountReviewersByPRID(ctx context.Context, prID uuid.UUID
 
 	var r0 int
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) (int, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string) (int, error)); ok {
 		return rf(ctx, prID)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) int); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string) int); ok {
 		r0 = rf(ctx, prID)
 	} else {
 		r0 = ret.Get(0).(int)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
 		r1 = rf(ctx, prID)
 	} else {
 		r1 = ret.Error(1)
@@ -109,14 +109,14 @@ type PRRepository_CountReviewersByPRID_Call struct {
 
 // CountReviewersByPRID is a helper method to define mock.On call
 //   - ctx context.Context
-//   - prID uuid.UUID
+//   - prID string
 func (_e *PRRepository_Expecter) CountReviewersByPRID(ctx interface{}, prID interface{}) *PRRepository_CountReviewersByPRID_Call {
 	return &PRRepository_CountReviewersByPRID_Call{Call: _e.mock.On("CountReviewersByPRID", ctx, prID)}
 }
 
-func (_c *PRRepository_CountReviewersByPRID_Call) Run(run func(ctx context.Context, prID uuid.UUID)) *PRRepository_CountReviewersByPRID_Call {
+func (_c *PRRepository_CountReviewersByPRID_Call) Run(run func(ctx context.Context, prID string)) *PRRepository_CountReviewersByPRID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(uuid.UUID))
+		run(args[0].(context.Context), args[1].(string))
 	})
 	return _c
 }
@@ -126,7 +126,7 @@ func (_c *PRRepository_CountReviewersByPRID_Call) Return(_a0 int, _a1 error) *PR
 	return _c
 }
 
-func (_c *PRRepository_CountReviewersByPRID_Call) RunAndReturn(run func(context.Context, uuid.UUID) (int, error)) *PRRepository_CountReviewersByPRID_Call {
+func (_c *PRRepository_CountReviewersByPRID_Call) RunAndReturn(run func(context.Context, string) (int, error)) *PRRepository_CountReviewersByPRID_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -179,7 +179,7 @@ func (_c *PRRepository_CreatePR_Call) RunAndReturn(run func(context.Context, *mo
 }
 
 // GetPRByID provides a mock function with given fields: ctx, id
-func (_m *PRRepository) GetPRByID(ctx context.Context, id uuid.UUID) (*models.PullRequest, error) {
+func (_m *PRRepository) GetPRByID(ctx context.Context, id string) (*models.PullRequest, error) {
 	ret := _m.Called(ctx, id)
 
 	if len(ret) == 0 {
@@ -188,10 +188,10 @@ func (_m *PRRepository) GetPRByID(ctx context.Context, id uuid.UUID) (*models.Pu
 
 	var r0 *models.PullRequest
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*models.PullRequest, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*models.PullRequest, error)); ok {
 		return rf(ctx, id)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) *models.PullRequest); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string) *models.PullRequest); ok {
 		r0 = rf(ctx, id)
 	} else {
 		if ret.Get(0) != nil {
@@ -199,7 +199,7 @@ func (_m *PRRepository) GetPRByID(ctx context.Context, id uuid.UUID) (*models.Pu
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
 		r1 = rf(ctx, id)
 	} else {
 		r1 = ret.Error(1)
@@ -215,14 +215,14 @@ type PRRepository_GetPRByID_Call struct {
 
 // GetPRByID is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
+//   - id string
 func (_e *PRRepository_Expecter) GetPRByID(ctx interface{}, id interface{}) *PRRepository_GetPRByID_Call {
 	return &PRRepository_GetPRByID_Call{Call: _e.mock.On("GetPRByID", ctx, id)}
 }
 
-func (_c *PRRepository_GetPRByID_Call) Run(run func(ctx context.Context, id uuid.UUID)) *PRRepository_GetPRByID_Call {
+func (_c *PRRepository_GetPRByID_Call) Run(run func(ctx context.Context, id string)) *PRRepository_GetPRByID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(uuid.UUID))
+		run(args[0].(context.Context), args[1].(string))
 	})
 	return _c
 }
@@ -232,7 +232,7 @@ func (_c *PRRepository_GetPRByID_Call) Return(_a0 *models.PullRequest, _a1 error
 	return _c
 }
 
-func (_c *PRRepository_GetPRByID_Call) RunAndReturn(run func(context.Context, uuid.UUID) (*models.PullRequest, error)) *PRRepository_GetPRByID_Call {
+func (_c *PRRepository_GetPRByID_Call) RunAndReturn(run func(context.Context, string) (*models.PullRequest, error)) *PRRepository_GetPRByID_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -298,7 +298,7 @@ func (_c *PRRepository_ListPRsByReviewer_Call) RunAndReturn(run func(context.Con
 }
 
 // LockPRByID provides a mock function with given fields: ctx, id
-func (_m *PRRepository) LockPRByID(ctx context.Context, id uuid.UUID) (*models.PullRequest, error) {
+func (_m *PRRepository) LockPRByID(ctx context.Context, id string) (*models.PullRequest, error) {
 	ret := _m.Called(ctx, id)
 
 	if len(ret) == 0 {
@@ -307,10 +307,10 @@ func (_m *PRRepository) LockPRByID(ctx context.Context, id uuid.UUID) (*models.P
 
 	var r0 *models.PullRequest
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*models.PullRequest, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*models.PullRequest, error)); ok {
 		return rf(ctx, id)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) *models.PullRequest); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string) *models.PullRequest); ok {
 		r0 = rf(ctx, id)
 	} else {
 		if ret.Get(0) != nil {
@@ -318,7 +318,7 @@ func (_m *PRRepository) LockPRByID(ctx context.Context, id uuid.UUID) (*models.P
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
 		r1 = rf(ctx, id)
 	} else {
 		r1 = ret.Error(1)
@@ -334,14 +334,14 @@ type PRRepository_LockPRByID_Call struct {
 
 // LockPRByID is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
+//   - id string
 func (_e *PRRepository_Expecter) LockPRByID(ctx interface{}, id interface{}) *PRRepository_LockPRByID_Call {
 	return &PRRepository_LockPRByID_Call{Call: _e.mock.On("LockPRByID", ctx, id)}
 }
 
-func (_c *PRRepository_LockPRByID_Call) Run(run func(ctx context.Context, id uuid.UUID)) *PRRepository_LockPRByID_Call {
+func (_c *PRRepository_LockPRByID_Call) Run(run func(ctx context.Context, id string)) *PRRepository_LockPRByID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(uuid.UUID))
+		run(args[0].(context.Context), args[1].(string))
 	})
 	return _c
 }
@@ -351,13 +351,13 @@ func (_c *PRRepository_LockPRByID_Call) Return(_a0 *models.PullRequest, _a1 erro
 	return _c
 }
 
-func (_c *PRRepository_LockPRByID_Call) RunAndReturn(run func(context.Context, uuid.UUID) (*models.PullRequest, error)) *PRRepository_LockPRByID_Call {
+func (_c *PRRepository_LockPRByID_Call) RunAndReturn(run func(context.Context, string) (*models.PullRequest, error)) *PRRepository_LockPRByID_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // RemoveReviewer provides a mock function with given fields: ctx, prID, reviewerID
-func (_m *PRRepository) RemoveReviewer(ctx context.Context, prID uuid.UUID, reviewerID uuid.UUID) error {
+func (_m *PRRepository) RemoveReviewer(ctx context.Context, prID string, reviewerID uuid.UUID) error {
 	ret := _m.Called(ctx, prID, reviewerID)
 
 	if len(ret) == 0 {
@@ -365,7 +365,7 @@ func (_m *PRRepository) RemoveReviewer(ctx context.Context, prID uuid.UUID, revi
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string, uuid.UUID) error); ok {
 		r0 = rf(ctx, prID, reviewerID)
 	} else {
 		r0 = ret.Error(0)
@@ -381,15 +381,15 @@ type PRRepository_RemoveReviewer_Call struct {
 
 // RemoveReviewer is a helper method to define mock.On call
 //   - ctx context.Context
-//   - prID uuid.UUID
+//   - prID string
 //   - reviewerID uuid.UUID
 func (_e *PRRepository_Expecter) RemoveReviewer(ctx interface{}, prID interface{}, reviewerID interface{}) *PRRepository_RemoveReviewer_Call {
 	return &PRRepository_RemoveReviewer_Call{Call: _e.mock.On("RemoveReviewer", ctx, prID, reviewerID)}
 }
 
-func (_c *PRRepository_RemoveReviewer_Call) Run(run func(ctx context.Context, prID uuid.UUID, reviewerID uuid.UUID)) *PRRepository_RemoveReviewer_Call {
+func (_c *PRRepository_RemoveReviewer_Call) Run(run func(ctx context.Context, prID string, reviewerID uuid.UUID)) *PRRepository_RemoveReviewer_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(uuid.UUID), args[2].(uuid.UUID))
+		run(args[0].(context.Context), args[1].(string), args[2].(uuid.UUID))
 	})
 	return _c
 }
@@ -399,13 +399,13 @@ func (_c *PRRepository_RemoveReviewer_Call) Return(_a0 error) *PRRepository_Remo
 	return _c
 }
 
-func (_c *PRRepository_RemoveReviewer_Call) RunAndReturn(run func(context.Context, uuid.UUID, uuid.UUID) error) *PRRepository_RemoveReviewer_Call {
+func (_c *PRRepository_RemoveReviewer_Call) RunAndReturn(run func(context.Context, string, uuid.UUID) error) *PRRepository_RemoveReviewer_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateStatus provides a mock function with given fields: ctx, prID, status, mergedAt
-func (_m *PRRepository) UpdateStatus(ctx context.Context, prID uuid.UUID, status models.PRStatus, mergedAt *time.Time) error {
+func (_m *PRRepository) UpdateStatus(ctx context.Context, prID string, status models.PRStatus, mergedAt *time.Time) error {
 	ret := _m.Called(ctx, prID, status, mergedAt)
 
 	if len(ret) == 0 {
@@ -413,7 +413,7 @@ func (_m *PRRepository) UpdateStatus(ctx context.Context, prID uuid.UUID, status
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, models.PRStatus, *time.Time) error); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string, models.PRStatus, *time.Time) error); ok {
 		r0 = rf(ctx, prID, status, mergedAt)
 	} else {
 		r0 = ret.Error(0)
@@ -429,16 +429,16 @@ type PRRepository_UpdateStatus_Call struct {
 
 // UpdateStatus is a helper method to define mock.On call
 //   - ctx context.Context
-//   - prID uuid.UUID
+//   - prID string
 //   - status models.PRStatus
 //   - mergedAt *time.Time
 func (_e *PRRepository_Expecter) UpdateStatus(ctx interface{}, prID interface{}, status interface{}, mergedAt interface{}) *PRRepository_UpdateStatus_Call {
 	return &PRRepository_UpdateStatus_Call{Call: _e.mock.On("UpdateStatus", ctx, prID, status, mergedAt)}
 }
 
-func (_c *PRRepository_UpdateStatus_Call) Run(run func(ctx context.Context, prID uuid.UUID, status models.PRStatus, mergedAt *time.Time)) *PRRepository_UpdateStatus_Call {
+func (_c *PRRepository_UpdateStatus_Call) Run(run func(ctx context.Context, prID string, status models.PRStatus, mergedAt *time.Time)) *PRRepository_UpdateStatus_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(uuid.UUID), args[2].(models.PRStatus), args[3].(*time.Time))
+		run(args[0].(context.Context), args[1].(string), args[2].(models.PRStatus), args[3].(*time.Time))
 	})
 	return _c
 }
@@ -448,7 +448,7 @@ func (_c *PRRepository_UpdateStatus_Call) Return(_a0 error) *PRRepository_Update
 	return _c
 }
 
-func (_c *PRRepository_UpdateStatus_Call) RunAndReturn(run func(context.Context, uuid.UUID, models.PRStatus, *time.Time) error) *PRRepository_UpdateStatus_Call {
+func (_c *PRRepository_UpdateStatus_Call) RunAndReturn(run func(context.Context, string, models.PRStatus, *time.Time) error) *PRRepository_UpdateStatus_Call {
 	_c.Call.Return(run)
 	return _c
 }
