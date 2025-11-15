@@ -5,7 +5,7 @@ import (
 	"avito-test-pr-service/internal/infrastructure/config"
 	"avito-test-pr-service/internal/infrastructure/http/handlers/team"
 	"avito-test-pr-service/internal/infrastructure/http/handlers/user"
-	"avito-test-pr-service/internal/infrastructure/http/middleware"
+	middlewares "avito-test-pr-service/internal/infrastructure/http/middleware"
 	"avito-test-pr-service/internal/infrastructure/logger"
 	"net/http"
 
