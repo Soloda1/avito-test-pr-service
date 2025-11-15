@@ -3,6 +3,7 @@ package http
 import (
 	input "avito-test-pr-service/internal/domain/ports/input"
 	"avito-test-pr-service/internal/infrastructure/config"
+	prhandler "avito-test-pr-service/internal/infrastructure/http/handlers/pr"
 	"avito-test-pr-service/internal/infrastructure/http/handlers/team"
 	"avito-test-pr-service/internal/infrastructure/http/handlers/user"
 	"avito-test-pr-service/internal/infrastructure/http/middlewares"
@@ -41,6 +42,7 @@ func (r *Router) Setup(cfg *config.Config) {
 
 	r.router.Mount("/users", r.setupUserRoutes())
 	r.router.Mount("/team", r.setupTeamRoutes())
+	r.router.Mount("/pullRequest", r.setupPRRoutes())
 }
 
 func (r *Router) setupUserRoutes() http.Handler {
@@ -56,6 +58,15 @@ func (r *Router) setupTeamRoutes() http.Handler {
 	sub := chi.NewRouter()
 	sub.Post("/add", h.AddTeam)
 	sub.Get("/get", h.GetTeam)
+	return sub
+}
+
+func (r *Router) setupPRRoutes() http.Handler {
+	h := prhandler.NewPRHandler(r.prService, r.log)
+	sub := chi.NewRouter()
+	sub.Post("/create", h.CreatePR)
+	sub.Post("/merge", h.MergePR)
+	sub.Post("/reassign", h.Reassign)
 	return sub
 }
 
