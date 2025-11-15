@@ -37,10 +37,11 @@ func (s *RandomReviewerSelector) Select(candidates []string, count int) []string
 	shuffled := append([]string(nil), candidates...)
 	if len(shuffled) > 1 {
 		s.mu.Lock()
+		defer s.mu.Unlock()
 		s.rnd.Shuffle(len(shuffled), func(i, j int) {
 			shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
 		})
-		s.mu.Unlock()
+
 	}
 
 	if count > len(shuffled) {

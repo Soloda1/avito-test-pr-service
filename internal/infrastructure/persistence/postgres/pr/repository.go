@@ -272,7 +272,7 @@ func (r *PRRepository) ListPRsByReviewer(ctx context.Context, reviewerID string,
 		FROM prs p
 		JOIN pr_reviewers r ON p.id = r.pr_id
 		LEFT JOIN pr_reviewers r2 ON p.id = r2.pr_id
-		WHERE r.reviewer_id = @reviewer_id AND (@status IS NULL OR p.status = @status::text)
+		WHERE r.reviewer_id = @reviewer_id AND (@status IS NULL OR p.status = @status)
 		GROUP BY p.id, p.title, p.author_id, p.status, p.created_at, p.merged_at, p.updated_at
 		ORDER BY p.created_at DESC;
 	`

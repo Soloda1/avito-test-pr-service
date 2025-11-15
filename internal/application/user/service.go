@@ -7,6 +7,8 @@ import (
 	uow "avito-test-pr-service/internal/domain/ports/output/uow"
 	"avito-test-pr-service/internal/utils"
 	"context"
+	"errors"
+
 	"github.com/google/uuid"
 )
 
@@ -126,7 +128,7 @@ func (s *Service) GetUserTeamName(ctx context.Context, id string) (string, error
 	repo := tx.UserRepository()
 	teamID, err := repo.GetTeamIDByUserID(ctx, id)
 	if err != nil {
-		if err == utils.ErrUserNoTeam {
+		if errors.Is(err, utils.ErrUserNoTeam) {
 			return "", nil
 		}
 		return "", err
