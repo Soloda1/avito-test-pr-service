@@ -2,16 +2,14 @@ package models
 
 import (
 	"time"
-
-	"github.com/google/uuid"
 )
 
 type PullRequest struct {
 	ID          string
 	Title       string
-	AuthorID    uuid.UUID
+	AuthorID    string
 	Status      PRStatus
-	ReviewerIDs []uuid.UUID
+	ReviewerIDs []string
 	CreatedAt   time.Time
 	MergedAt    *time.Time
 	UpdatedAt   time.Time

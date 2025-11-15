@@ -25,6 +25,10 @@ func HTTPCodeConverter(status int, errs ...error) string {
 			return "NOT_ASSIGNED"
 		case errors.Is(err, ErrNoReplacementCandidates):
 			return "NO_CANDIDATE"
+		case errors.Is(err, ErrPRExists):
+			return "PR_EXISTS"
+		case errors.Is(err, ErrTeamExists):
+			return "TEAM_EXISTS"
 		}
 	}
 	switch status {

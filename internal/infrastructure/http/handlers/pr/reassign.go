@@ -7,8 +7,6 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
-
-	"github.com/google/uuid"
 )
 
 type ReassignPRRequest struct {
@@ -28,29 +26,22 @@ func (h *PRHandler) Reassign(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := utils.Validate(req); err != nil {
-		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPCodeConverter(http.StatusBadRequest), utils.ErrValidationFailed.Error())
+		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPCodeConverter(http.StatusBadRequest), err.Error())
 		return
 	}
 	prID := req.PullRequestID
+	oldID := req.OldUserID
 
-	oldID, err := uuid.Parse(req.OldUserID)
-	if err != nil {
-		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPCodeConverter(http.StatusBadRequest), utils.ErrInvalidOldUserID.Error())
-		return
-	}
-
-	h.log.Info("Reassign request", slog.String("pr_id", prID), slog.String("old_user_id", oldID.String()))
+	h.log.Info("Reassign request", slog.String("pr_id", prID), slog.String("old_user_id", oldID))
 
 	pr, err := h.prService.ReassignReviewer(r.Context(), prID, oldID)
 	if err != nil {
 		switch {
 		case errors.Is(err, utils.ErrPRNotFound) || errors.Is(err, utils.ErrUserNotFound):
-			_ = utils.WriteError(w, http.StatusNotFound, utils.HTTPCodeConverter(http.StatusNotFound), utils.ErrNotFound.Error())
+			_ = utils.WriteError(w, http.StatusNotFound, utils.HTTPCodeConverter(http.StatusNotFound), err.Error())
 			return
 		case errors.Is(err, utils.ErrAlreadyMerged) || errors.Is(err, utils.ErrReviewerNotAssigned) || errors.Is(err, utils.ErrNoReplacementCandidates):
-			status := http.StatusConflict
-			codeStr := utils.HTTPCodeConverter(status, err)
-			_ = utils.WriteError(w, status, codeStr, err.Error())
+			_ = utils.WriteError(w, http.StatusConflict, utils.HTTPCodeConverter(http.StatusConflict, err), err.Error())
 			return
 		default:
 			h.log.Error("Reassign failed", slog.Any("err", err), slog.String("pr_id", prID))

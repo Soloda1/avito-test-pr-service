@@ -6,8 +6,6 @@ import (
 
 	rand "math/rand/v2"
 
-	"github.com/google/uuid"
-
 	"avito-test-pr-service/internal/domain/services"
 )
 
@@ -31,12 +29,12 @@ func NewRandomReviewerSelectorWithRand(r *rand.Rand) services.ReviewerSelector {
 	return &RandomReviewerSelector{rnd: r}
 }
 
-func (s *RandomReviewerSelector) Select(candidates []uuid.UUID, count int) []uuid.UUID {
+func (s *RandomReviewerSelector) Select(candidates []string, count int) []string {
 	if count <= 0 || len(candidates) == 0 {
 		return nil
 	}
 
-	shuffled := append([]uuid.UUID(nil), candidates...)
+	shuffled := append([]string(nil), candidates...)
 	if len(shuffled) > 1 {
 		s.mu.Lock()
 		defer s.mu.Unlock()
@@ -50,5 +48,5 @@ func (s *RandomReviewerSelector) Select(candidates []uuid.UUID, count int) []uui
 		count = len(shuffled)
 	}
 
-	return append([]uuid.UUID(nil), shuffled[:count]...)
+	return append([]string(nil), shuffled[:count]...)
 }

@@ -21,171 +21,132 @@ func NewService(uow uow.UnitOfWork, log ports.Logger) input.UserInputPort {
 	return &Service{uow: uow, log: log}
 }
 
-func (s *Service) CreateUser(ctx context.Context, name string, isActive bool) (*models.User, error) {
-	if name == "" {
-		s.log.Error("CreateUser invalid argument", "err", utils.ErrInvalidArgument, "name", name)
+func (s *Service) CreateUser(ctx context.Context, id string, name string, isActive bool) (*models.User, error) {
+	if id == "" || name == "" {
+		s.log.Error("CreateUser invalid argument", "id", id, "name", name)
 		return nil, utils.ErrInvalidArgument
 	}
-
 	tx, err := s.uow.Begin(ctx)
 	if err != nil {
-		s.log.Error("CreateUser begin tx failed", "err", err, "name", name)
+		s.log.Error("CreateUser begin tx failed", "err", err, "id", id)
 		return nil, err
 	}
-
 	var commit bool
 	defer func() {
 		if !commit {
 			_ = tx.Rollback(ctx)
 		}
 	}()
-
-	userRepo := tx.UserRepository()
-	u := &models.User{ID: uuid.New(), Name: name, IsActive: isActive}
-	if err := userRepo.CreateUser(ctx, u); err != nil {
-		s.log.Error("CreateUser repo failed", "err", err, "user_id", u.ID)
+	repo := tx.UserRepository()
+	u := &models.User{ID: id, Name: name, IsActive: isActive}
+	if err := repo.CreateUser(ctx, u); err != nil {
+		s.log.Error("CreateUser repo failed", "err", err, "id", id)
 		return nil, err
 	}
-
 	if err := tx.Commit(ctx); err != nil {
-		s.log.Error("CreateUser commit failed", "err", err, "user_id", u.ID)
+		s.log.Error("CreateUser commit failed", "err", err, "id", id)
 		return nil, err
 	}
-
 	commit = true
-	s.log.Info("CreateUser success", "user_id", u.ID, "name", u.Name)
 	return u, nil
 }
 
-func (s *Service) UpdateUserActive(ctx context.Context, id uuid.UUID, isActive bool) error {
-	if id == uuid.Nil {
-		s.log.Error("UpdateUserActive invalid argument", "err", utils.ErrInvalidArgument, "user_id", id)
+func (s *Service) UpdateUserActive(ctx context.Context, id string, isActive bool) error {
+	if id == "" {
 		return utils.ErrInvalidArgument
 	}
-
 	tx, err := s.uow.Begin(ctx)
 	if err != nil {
-		s.log.Error("UpdateUserActive begin tx failed", "err", err, "user_id", id)
 		return err
 	}
-
 	var commit bool
 	defer func() {
 		if !commit {
 			_ = tx.Rollback(ctx)
 		}
 	}()
-
 	repo := tx.UserRepository()
-	_, err = repo.GetUserByID(ctx, id)
-	if err != nil {
-		s.log.Error("UpdateUserActive get failed", "err", err, "user_id", id)
+	if _, err := repo.GetUserByID(ctx, id); err != nil {
 		return err
 	}
-
 	if err := repo.UpdateUserActive(ctx, id, isActive); err != nil {
-		s.log.Error("UpdateUserActive update failed", "err", err, "user_id", id, "active", isActive)
 		return err
 	}
-
 	if err := tx.Commit(ctx); err != nil {
-		s.log.Error("UpdateUserActive commit failed", "err", err, "user_id", id)
 		return err
 	}
-
 	commit = true
-	s.log.Info("UpdateUserActive success", "user_id", id, "active", isActive)
 	return nil
 }
 
-func (s *Service) GetUser(ctx context.Context, id uuid.UUID) (*models.User, error) {
-	if id == uuid.Nil {
-		s.log.Error("GetUser invalid argument", "err", utils.ErrInvalidArgument, "user_id", id)
+func (s *Service) GetUser(ctx context.Context, id string) (*models.User, error) {
+	if id == "" {
 		return nil, utils.ErrInvalidArgument
 	}
-
 	tx, err := s.uow.Begin(ctx)
 	if err != nil {
-		s.log.Error("GetUser begin tx failed", "err", err, "user_id", id)
 		return nil, err
 	}
-
 	defer func() {
 		_ = tx.Rollback(ctx)
 	}()
-
-	userRepo := tx.UserRepository()
-	u, err := userRepo.GetUserByID(ctx, id)
+	repo := tx.UserRepository()
+	u, err := repo.GetUserByID(ctx, id)
 	if err != nil {
-		s.log.Error("GetUser failed", "err", err, "user_id", id)
 		return nil, err
 	}
-
-	s.log.Info("GetUser success", "user_id", id)
 	return u, nil
 }
 
 func (s *Service) ListUsers(ctx context.Context) ([]*models.User, error) {
 	tx, err := s.uow.Begin(ctx)
 	if err != nil {
-		s.log.Error("ListUsers begin tx failed", "err", err)
 		return nil, err
 	}
-
 	defer func() {
 		_ = tx.Rollback(ctx)
 	}()
-
-	userRepo := tx.UserRepository()
-	users, err := userRepo.ListUsers(ctx)
+	repo := tx.UserRepository()
+	users, err := repo.ListUsers(ctx)
 	if err != nil {
-		s.log.Error("ListUsers failed", "err", err)
 		return nil, err
 	}
-	s.log.Info("ListUsers success", "count", len(users))
 	return users, nil
 }
 
-func (s *Service) GetUserTeamName(ctx context.Context, id uuid.UUID) (string, error) {
-	if id == uuid.Nil {
-		s.log.Error("GetUserTeamName invalid argument", "err", utils.ErrInvalidArgument, "user_id", id)
+func (s *Service) GetUserTeamName(ctx context.Context, id string) (string, error) {
+	if id == "" {
 		return "", utils.ErrInvalidArgument
 	}
-
 	tx, err := s.uow.Begin(ctx)
 	if err != nil {
-		s.log.Error("GetUserTeamName begin tx failed", "err", err, "user_id", id)
 		return "", err
 	}
-	defer func() { _ = tx.Rollback(ctx) }()
-
-	userRepo := tx.UserRepository()
-	teamID, err := userRepo.GetTeamIDByUserID(ctx, id)
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
+	repo := tx.UserRepository()
+	teamID, err := repo.GetTeamIDByUserID(ctx, id)
 	if err != nil {
 		if errors.Is(err, utils.ErrUserNoTeam) {
 			return "", nil
 		}
-		s.log.Error("GetUserTeamName get team id failed", "err", err, "user_id", id)
 		return "", err
 	}
-
 	teamRepo := tx.TeamRepository()
 	team, err := teamRepo.GetTeamByID(ctx, teamID)
 	if err != nil {
-		s.log.Error("GetUserTeamName get team failed", "err", err, "user_id", id, "team_id", teamID)
 		return "", err
 	}
 	return team.Name, nil
 }
 
-func (s *Service) UpdateUserName(ctx context.Context, id uuid.UUID, name string) error {
-	if id == uuid.Nil || name == "" {
-		s.log.Error("UpdateUserName invalid argument", "err", utils.ErrInvalidArgument, "user_id", id, "name", name)
+func (s *Service) UpdateUserName(ctx context.Context, id string, name string) error {
+	if id == "" || name == "" {
 		return utils.ErrInvalidArgument
 	}
 	tx, err := s.uow.Begin(ctx)
 	if err != nil {
-		s.log.Error("UpdateUserName begin tx failed", "err", err, "user_id", id)
 		return err
 	}
 	var commit bool
@@ -194,39 +155,34 @@ func (s *Service) UpdateUserName(ctx context.Context, id uuid.UUID, name string)
 			_ = tx.Rollback(ctx)
 		}
 	}()
-
 	repo := tx.UserRepository()
 	if err := repo.UpdateUserName(ctx, id, name); err != nil {
-		s.log.Error("UpdateUserName repo failed", "err", err, "user_id", id)
 		return err
 	}
 	if err := tx.Commit(ctx); err != nil {
-		s.log.Error("UpdateUserName commit failed", "err", err, "user_id", id)
 		return err
 	}
 	commit = true
-	s.log.Info("UpdateUserName success", "user_id", id, "name", name)
 	return nil
 }
 
-func (s *Service) ListMembersByTeamID(ctx context.Context, teamID uuid.UUID) ([]*models.User, error) {
-	if teamID == uuid.Nil {
-		s.log.Error("ListMembersByTeamID invalid argument", "err", utils.ErrInvalidArgument, "team_id", teamID)
+func (s *Service) ListMembersByTeamID(ctx context.Context, teamID string) ([]*models.User, error) {
+	if teamID == "" {
+		return nil, utils.ErrInvalidArgument
+	}
+	parsed, err := uuid.Parse(teamID)
+	if err != nil {
 		return nil, utils.ErrInvalidArgument
 	}
 	tx, err := s.uow.Begin(ctx)
 	if err != nil {
-		s.log.Error("ListMembersByTeamID begin tx failed", "err", err, "team_id", teamID)
 		return nil, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
-
 	repo := tx.UserRepository()
-	users, err := repo.ListMembersByTeamID(ctx, teamID)
+	res, err := repo.ListMembersByTeamID(ctx, parsed)
 	if err != nil {
-		s.log.Error("ListMembersByTeamID repo failed", "err", err, "team_id", teamID)
 		return nil, err
 	}
-	s.log.Info("ListMembersByTeamID success", "team_id", teamID, "count", len(users))
-	return users, nil
+	return res, nil
 }

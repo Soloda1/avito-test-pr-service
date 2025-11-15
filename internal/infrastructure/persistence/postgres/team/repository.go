@@ -123,7 +123,7 @@ func (r *TeamRepository) ListTeams(ctx context.Context) ([]*models.Team, error) 
 	return res, nil
 }
 
-func (r *TeamRepository) AddMember(ctx context.Context, teamID uuid.UUID, userID uuid.UUID) error {
+func (r *TeamRepository) AddMember(ctx context.Context, teamID uuid.UUID, userID string) error {
 	const q = `
 		INSERT INTO team_members (team_id, user_id)
 		VALUES (@team_id, @user_id)
@@ -163,7 +163,7 @@ func (r *TeamRepository) AddMember(ctx context.Context, teamID uuid.UUID, userID
 	return nil
 }
 
-func (r *TeamRepository) RemoveMember(ctx context.Context, teamID uuid.UUID, userID uuid.UUID) error {
+func (r *TeamRepository) RemoveMember(ctx context.Context, teamID uuid.UUID, userID string) error {
 	const q = `
 		DELETE FROM team_members
 		WHERE team_id = @team_id AND user_id = @user_id

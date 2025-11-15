@@ -16,16 +16,12 @@ type PRDTO struct {
 }
 
 func ToPRDTO(pr *models.PullRequest) PRDTO {
-	reviewers := make([]string, 0, len(pr.ReviewerIDs))
-	for _, id := range pr.ReviewerIDs {
-		reviewers = append(reviewers, id.String())
-	}
 	return PRDTO{
 		PullRequestID:     pr.ID,
 		PullRequestName:   pr.Title,
-		AuthorID:          pr.AuthorID.String(),
+		AuthorID:          pr.AuthorID,
 		Status:            string(pr.Status),
-		AssignedReviewers: reviewers,
+		AssignedReviewers: append([]string(nil), pr.ReviewerIDs...),
 		CreatedAt:         pr.CreatedAt,
 		MergedAt:          pr.MergedAt,
 	}

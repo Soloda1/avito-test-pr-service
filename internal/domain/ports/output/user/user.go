@@ -3,7 +3,6 @@ package user
 import (
 	"avito-test-pr-service/internal/domain/models"
 	"context"
-
 	"github.com/google/uuid"
 )
 
@@ -11,11 +10,11 @@ import (
 
 type UserRepository interface {
 	CreateUser(ctx context.Context, user *models.User) error
-	GetUserByID(ctx context.Context, id uuid.UUID) (*models.User, error)
-	UpdateUserActive(ctx context.Context, id uuid.UUID, isActive bool) error
+	GetUserByID(ctx context.Context, id string) (*models.User, error)
+	UpdateUserActive(ctx context.Context, id string, isActive bool) error
 	ListUsers(ctx context.Context) ([]*models.User, error)
-	UpdateUserName(ctx context.Context, id uuid.UUID, name string) error
-	GetTeamIDByUserID(ctx context.Context, userID uuid.UUID) (uuid.UUID, error)
-	ListActiveMembersByTeamID(ctx context.Context, teamID uuid.UUID) ([]uuid.UUID, error)
+	UpdateUserName(ctx context.Context, id string, name string) error
+	GetTeamIDByUserID(ctx context.Context, userID string) (uuid.UUID, error)
+	ListActiveMembersByTeamID(ctx context.Context, teamID uuid.UUID) ([]string, error)
 	ListMembersByTeamID(ctx context.Context, teamID uuid.UUID) ([]*models.User, error)
 }

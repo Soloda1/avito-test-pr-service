@@ -4,8 +4,6 @@ import (
 	"avito-test-pr-service/internal/utils"
 	"log/slog"
 	"net/http"
-
-	"github.com/google/uuid"
 )
 
 type GetReviewsRequest struct {
@@ -25,29 +23,23 @@ type PullRequestShort struct {
 }
 
 func (h *UserHandler) GetReviews(w http.ResponseWriter, r *http.Request) {
-	req := GetReviewsRequest{UserID: r.URL.Query().Get("user_id")}
+	userID := r.URL.Query().Get("user_id")
 
-	userID, err := uuid.Parse(req.UserID)
-	if err != nil {
-		_ = utils.WriteError(w, http.StatusBadRequest, utils.HTTPCodeConverter(http.StatusBadRequest), utils.ErrInvalidUserID.Error())
-		return
-	}
-
-	h.log.Info("GetReviews request", slog.String("user_id", req.UserID))
+	h.log.Info("GetReviews request", slog.String("user_id", userID))
 
 	prs, err := h.prService.ListPRsByAssignee(r.Context(), userID, nil)
 	if err != nil {
-		h.log.Error("GetReviews service failed", slog.String("user_id", req.UserID), slog.Any("err", err))
+		h.log.Error("GetReviews service failed", slog.String("user_id", userID), slog.Any("err", err))
 		_ = utils.WriteError(w, http.StatusInternalServerError, utils.HTTPCodeConverter(http.StatusInternalServerError), utils.ErrInternal.Error())
 		return
 	}
 
-	resp := GetReviewsResponse{UserID: req.UserID, PullRequests: []PullRequestShort{}}
+	resp := GetReviewsResponse{UserID: userID, PullRequests: []PullRequestShort{}}
 	for _, p := range prs {
 		resp.PullRequests = append(resp.PullRequests, PullRequestShort{
 			ID:     p.ID,
 			Title:  p.Title,
-			Author: p.AuthorID.String(),
+			Author: p.AuthorID,
 			Status: string(p.Status),
 		})
 	}
