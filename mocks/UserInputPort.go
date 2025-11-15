@@ -201,6 +201,65 @@ func (_c *UserInputPort_GetUserTeamName_Call) RunAndReturn(run func(context.Cont
 	return _c
 }
 
+// ListMembersByTeamID provides a mock function with given fields: ctx, teamID
+func (_m *UserInputPort) ListMembersByTeamID(ctx context.Context, teamID uuid.UUID) ([]*models.User, error) {
+	ret := _m.Called(ctx, teamID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListMembersByTeamID")
+	}
+
+	var r0 []*models.User
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]*models.User, error)); ok {
+		return rf(ctx, teamID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) []*models.User); ok {
+		r0 = rf(ctx, teamID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*models.User)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = rf(ctx, teamID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// UserInputPort_ListMembersByTeamID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListMembersByTeamID'
+type UserInputPort_ListMembersByTeamID_Call struct {
+	*mock.Call
+}
+
+// ListMembersByTeamID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - teamID uuid.UUID
+func (_e *UserInputPort_Expecter) ListMembersByTeamID(ctx interface{}, teamID interface{}) *UserInputPort_ListMembersByTeamID_Call {
+	return &UserInputPort_ListMembersByTeamID_Call{Call: _e.mock.On("ListMembersByTeamID", ctx, teamID)}
+}
+
+func (_c *UserInputPort_ListMembersByTeamID_Call) Run(run func(ctx context.Context, teamID uuid.UUID)) *UserInputPort_ListMembersByTeamID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uuid.UUID))
+	})
+	return _c
+}
+
+func (_c *UserInputPort_ListMembersByTeamID_Call) Return(_a0 []*models.User, _a1 error) *UserInputPort_ListMembersByTeamID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *UserInputPort_ListMembersByTeamID_Call) RunAndReturn(run func(context.Context, uuid.UUID) ([]*models.User, error)) *UserInputPort_ListMembersByTeamID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListUsers provides a mock function with given fields: ctx
 func (_m *UserInputPort) ListUsers(ctx context.Context) ([]*models.User, error) {
 	ret := _m.Called(ctx)
