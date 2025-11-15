@@ -75,9 +75,10 @@ migrate-down: check-go-version
 up:
 	@echo "🚀 docker-compose up -d"
 	@docker compose -f $(DOCKER_COMPOSE_FILE) up -d --build
-	@echo "⏳ Ожидание готовности Postgres..."
-	@docker exec $(PSQL_CONTAINER) pg_isready -U $(DB_USER) -p $(DB_PORT) || true
-
+	@until docker exec $(PSQL_CONTAINER) pg_isready -U $(DB_USER) -p $(DB_PORT); do \
+    		echo "⏳ Ждем готовности Postgres..."; \
+    		sleep 1; \
+    	done
 down:
 	@echo "🛑 docker-compose down"
 	@docker compose -f $(DOCKER_COMPOSE_FILE) down
