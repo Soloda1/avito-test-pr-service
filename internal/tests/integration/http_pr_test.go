@@ -386,4 +386,62 @@ func TestPRHandlers_HTTPIntegration(t *testing.T) {
 			seen[rv] = struct{}{}
 		}
 	})
+
+	t.Run("MergePR idempotent second call", func(t *testing.T) {
+		if err := TruncateAll(testCtx, pgC.Pool); err != nil {
+			t.Fatalf("truncate: %v", err)
+		}
+		insertUserHTTP(t, "u1", "author", true)
+		teamID := insertTeamHTTP(t, "core")
+		addMemberHTTP(t, teamID, "u1")
+		createResp, _ := postJSONPR(baseURL, "/pullRequest/create", map[string]any{"pull_request_id": "pr-idem", "pull_request_name": "t", "author_id": "u1"})
+		createResp.Body.Close()
+		firstMerge, err := postJSONPR(baseURL, "/pullRequest/merge", map[string]any{"pull_request_id": "pr-idem"})
+		if err != nil {
+			t.Fatalf("first merge post: %v", err)
+		}
+		var first struct {
+			PR struct {
+				Status   string     `json:"status"`
+				MergedAt *time.Time `json:"mergedAt"`
+			} `json:"pr"`
+		}
+		if err := json.NewDecoder(firstMerge.Body).Decode(&first); err != nil {
+			t.Fatalf("decode first: %v", err)
+		}
+		firstMerge.Body.Close()
+		if first.PR.Status != "MERGED" || first.PR.MergedAt == nil {
+			t.Fatalf("first not merged %+v", first)
+		}
+		mergedAt1 := *first.PR.MergedAt
+		time.Sleep(20 * time.Millisecond)
+
+		secondMerge, err := postJSONPR(baseURL, "/pullRequest/merge", map[string]any{"pull_request_id": "pr-idem"})
+		if err != nil {
+			t.Fatalf("second merge post: %v", err)
+		}
+		defer secondMerge.Body.Close()
+		if secondMerge.StatusCode != http.StatusOK {
+			t.Fatalf("second want 200 got %d", secondMerge.StatusCode)
+		}
+		var second struct {
+			PR struct {
+				Status   string     `json:"status"`
+				MergedAt *time.Time `json:"mergedAt"`
+			} `json:"pr"`
+		}
+		if err := json.NewDecoder(secondMerge.Body).Decode(&second); err != nil {
+			t.Fatalf("decode second: %v", err)
+		}
+		if second.PR.Status != "MERGED" || second.PR.MergedAt == nil {
+			t.Fatalf("second not merged %+v", second)
+		}
+		mergedAt1Trunc := mergedAt1.UTC().Truncate(time.Microsecond)
+		secondMergedTrunc := second.PR.MergedAt.UTC().Truncate(time.Microsecond)
+		if !secondMergedTrunc.Equal(mergedAt1Trunc) {
+			if secondMergedTrunc.After(mergedAt1Trunc) {
+				t.Fatalf("mergedAt changed (not idempotent) first=%v second=%v", mergedAt1Trunc, secondMergedTrunc)
+			}
+		}
+	})
 }
