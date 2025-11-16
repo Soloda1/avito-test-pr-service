@@ -1,5 +1,5 @@
 services:
-  pr-db:
+  pr-service-db:
     image: postgres:16-alpine
     container_name: pr-service-db
     environment:
@@ -26,7 +26,7 @@ services:
       dockerfile: Dockerfile.migrator
     container_name: pr-service-migrator
     depends_on:
-      pr-db:
+      pr-service-db:
         condition: service_healthy
     volumes:
       - ./migrations:/app/migrations
@@ -45,7 +45,8 @@ services:
       - APP_ENV=testing
     command: ["go", "test", "./..."]
     depends_on:
-      - pr-db
+      pr-service-db:
+        condition: service_healthy
     networks:
       - prnet
 
@@ -57,7 +58,7 @@ services:
     depends_on:
       migrator:
         condition: service_completed_successfully
-      pr-db:
+      pr-service-db:
         condition: service_healthy
       test-runner:
         condition: service_completed_successfully
@@ -79,7 +80,7 @@ services:
     image: dpage/pgadmin4:8
     container_name: pr-service-pgadmin
     depends_on:
-      pr-db:
+      pr-service-db:
         condition: service_healthy
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@admin.com
