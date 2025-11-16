@@ -45,7 +45,7 @@ services:
       - APP_ENV=testing
     command: ["go", "test", "./..."]
     depends_on:
-      - pr-service-db
+      - pr-db
     networks:
       - prnet
 
