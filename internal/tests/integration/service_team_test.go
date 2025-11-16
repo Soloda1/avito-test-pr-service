@@ -320,4 +320,161 @@ func TestTeamService_Integration(t *testing.T) {
 			t.Fatalf("want ErrTeamNotFound got %v", err)
 		}
 	})
+
+	t.Run("CreateTeam duplicate name -> ErrTeamExists", func(t *testing.T) {
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate: %v", err)
+		}
+		svc := newTeamService()
+		_, err := svc.CreateTeam(ctx, "core")
+		if err != nil {
+			t.Fatalf("first create: %v", err)
+		}
+		_, err = svc.CreateTeam(ctx, "core")
+		if err == nil || !errors.Is(err, utils.ErrTeamExists) {
+			if err == nil || (!errors.Is(err, utils.ErrAlreadyExists) && !errors.Is(err, utils.ErrTeamExists)) {
+				t.Fatalf("want ErrTeamExists/ErrAlreadyExists got %v", err)
+			}
+		}
+	})
+
+	t.Run("AddMember invalid args -> ErrInvalidArgument", func(t *testing.T) {
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate: %v", err)
+		}
+		svc := newTeamService()
+		err := svc.AddMember(ctx, uuid.Nil, uuid.Nil)
+		if err == nil || !errors.Is(err, utils.ErrInvalidArgument) {
+			t.Fatalf("want ErrInvalidArgument got %v", err)
+		}
+	})
+
+	t.Run("RemoveMember invalid args -> ErrInvalidArgument", func(t *testing.T) {
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate: %v", err)
+		}
+		svc := newTeamService()
+		err := svc.RemoveMember(ctx, uuid.Nil, uuid.Nil)
+		if err == nil || !errors.Is(err, utils.ErrInvalidArgument) {
+			t.Fatalf("want ErrInvalidArgument got %v", err)
+		}
+	})
+
+	t.Run("RemoveMember team not found -> ErrTeamNotFound", func(t *testing.T) {
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate: %v", err)
+		}
+		svc := newTeamService()
+		uid := uuid.New()
+		_, err := pgC.Pool.Exec(ctx, `INSERT INTO users(id, name, is_active, created_at, updated_at) VALUES ($1,$2,$3,now(),now())`, uid.String(), "alice", true)
+		if err != nil {
+			t.Fatalf("insert user: %v", err)
+		}
+		err = svc.RemoveMember(ctx, uuid.New(), uid)
+		if err == nil || !errors.Is(err, utils.ErrTeamNotFound) {
+			if err == nil || (!errors.Is(err, utils.ErrNotFound) && !errors.Is(err, utils.ErrTeamNotFound)) {
+				t.Fatalf("want ErrTeamNotFound/ErrNotFound got %v", err)
+			}
+		}
+	})
+
+	t.Run("RemoveMember user not found -> ErrUserNotFound", func(t *testing.T) {
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate: %v", err)
+		}
+		svc := newTeamService()
+		team, err := svc.CreateTeam(ctx, "core")
+		if err != nil {
+			t.Fatalf("create team: %v", err)
+		}
+		err = svc.RemoveMember(ctx, team.ID, uuid.New())
+		if err == nil || !errors.Is(err, utils.ErrUserNotFound) {
+			if err == nil || (!errors.Is(err, utils.ErrNotFound) && !errors.Is(err, utils.ErrUserNotFound)) {
+				t.Fatalf("want ErrUserNotFound/ErrNotFound got %v", err)
+			}
+		}
+	})
+
+	t.Run("CreateTeamWithMembers update existing user active only", func(t *testing.T) {
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate: %v", err)
+		}
+		svc := newTeamService()
+		_, err := pgC.Pool.Exec(ctx, `INSERT INTO users(id, name, is_active, created_at, updated_at) VALUES ($1,$2,$3,now(),now())`, "u1", "Alice", false)
+		if err != nil {
+			t.Fatalf("insert user: %v", err)
+		}
+		members := []*models.User{{ID: "u1", Name: "Alice", IsActive: true}}
+		_, users, err := svc.CreateTeamWithMembers(ctx, "backend", members)
+		if err != nil {
+			t.Fatalf("CreateTeamWithMembers: %v", err)
+		}
+		row := pgC.Pool.QueryRow(ctx, `SELECT is_active FROM users WHERE id=$1`, "u1")
+		var active bool
+		if err := row.Scan(&active); err != nil {
+			t.Fatalf("scan: %v", err)
+		}
+		if !active {
+			t.Fatalf("expected active updated to true")
+		}
+		if users[0].IsActive != true {
+			t.Fatalf("returned user not updated")
+		}
+	})
+
+	t.Run("CreateTeamWithMembers update existing user name only", func(t *testing.T) {
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate: %v", err)
+		}
+		svc := newTeamService()
+		_, err := pgC.Pool.Exec(ctx, `INSERT INTO users(id, name, is_active, created_at, updated_at) VALUES ($1,$2,$3,now(),now())`, "u1", "Old", true)
+		if err != nil {
+			t.Fatalf("insert user: %v", err)
+		}
+		members := []*models.User{{ID: "u1", Name: "New", IsActive: true}}
+		_, users, err := svc.CreateTeamWithMembers(ctx, "backend", members)
+		if err != nil {
+			t.Fatalf("CreateTeamWithMembers: %v", err)
+		}
+		row := pgC.Pool.QueryRow(ctx, `SELECT name FROM users WHERE id=$1`, "u1")
+		var name string
+		if err := row.Scan(&name); err != nil {
+			t.Fatalf("scan: %v", err)
+		}
+		if name != "New" {
+			t.Fatalf("expected name updated to New got %s", name)
+		}
+		if users[0].Name != "New" {
+			t.Fatalf("returned user name not updated")
+		}
+	})
+
+	t.Run("CreateTeamWithMembers update existing user name and active", func(t *testing.T) {
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate: %v", err)
+		}
+		svc := newTeamService()
+		_, err := pgC.Pool.Exec(ctx, `INSERT INTO users(id, name, is_active, created_at, updated_at) VALUES ($1,$2,$3,now(),now())`, "u1", "Old", false)
+		if err != nil {
+			t.Fatalf("insert user: %v", err)
+		}
+		members := []*models.User{{ID: "u1", Name: "New", IsActive: true}}
+		_, users, err := svc.CreateTeamWithMembers(ctx, "backend", members)
+		if err != nil {
+			t.Fatalf("CreateTeamWithMembers: %v", err)
+		}
+		row := pgC.Pool.QueryRow(ctx, `SELECT name, is_active FROM users WHERE id=$1`, "u1")
+		var name string
+		var active bool
+		if err := row.Scan(&name, &active); err != nil {
+			t.Fatalf("scan: %v", err)
+		}
+		if name != "New" || !active {
+			t.Fatalf("expected updated both fields got name=%s active=%v", name, active)
+		}
+		if users[0].Name != "New" || users[0].IsActive != true {
+			t.Fatalf("returned user not updated fully")
+		}
+	})
+
 }
