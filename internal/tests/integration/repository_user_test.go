@@ -93,14 +93,9 @@ func TestUserRepository_Integration(t *testing.T) {
 		if err := TruncateAll(ctx, pgC.Pool); err != nil {
 			t.Fatalf("truncate: %v", err)
 		}
-		_, err := pgC.Pool.Exec(ctx, `INSERT INTO teams(id, name, created_at, updated_at) VALUES (gen_random_uuid(), 'core', now(), now())`)
+		teamID, err := InsertTeam(ctx, pgC.Pool, "core")
 		if err != nil {
 			t.Fatalf("seed team: %v", err)
-		}
-		var teamID string
-		row := pgC.Pool.QueryRow(ctx, `SELECT id::text FROM teams WHERE name='core' LIMIT 1`)
-		if err := row.Scan(&teamID); err != nil {
-			t.Fatalf("select team: %v", err)
 		}
 
 		if err := repo.CreateUser(ctx, &models.User{ID: "u1", Name: "a", IsActive: true}); err != nil {
@@ -109,9 +104,11 @@ func TestUserRepository_Integration(t *testing.T) {
 		if err := repo.CreateUser(ctx, &models.User{ID: "u2", Name: "b", IsActive: false}); err != nil {
 			t.Fatalf("create user u2: %v", err)
 		}
-		_, err = pgC.Pool.Exec(ctx, `INSERT INTO team_members(team_id, user_id) VALUES ($1, $2), ($1, $3)`, teamID, "u1", "u2")
-		if err != nil {
-			t.Fatalf("seed members: %v", err)
+		if err := AddTeamMember(ctx, pgC.Pool, teamID, "u1"); err != nil {
+			t.Fatalf("seed member u1: %v", err)
+		}
+		if err := AddTeamMember(ctx, pgC.Pool, teamID, "u2"); err != nil {
+			t.Fatalf("seed member u2: %v", err)
 		}
 
 		gid, err := repo.GetTeamIDByUserID(ctx, "u1")

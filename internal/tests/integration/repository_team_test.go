@@ -15,13 +15,6 @@ func TestTeamRepository_Integration(t *testing.T) {
 	log := logger.New("test")
 	repo := teamrepo.NewTeamRepository(pgC.Pool, log)
 
-	insertUser := func(t *testing.T, id, name string) {
-		_, err := pgC.Pool.Exec(ctx, `INSERT INTO users(id, name, is_active, created_at, updated_at) VALUES ($1, $2, true, now(), now())`, id, name)
-		if err != nil {
-			t.Fatalf("insert user failed: %v", err)
-		}
-	}
-
 	t.Run("CreateTeam success", func(t *testing.T) {
 		if err := TruncateAll(ctx, pgC.Pool); err != nil {
 			t.Fatalf("truncate failed: %v", err)
@@ -148,18 +141,19 @@ func TestTeamRepository_Integration(t *testing.T) {
 		if err := repo.CreateTeam(ctx, team); err != nil {
 			t.Fatalf("create team: %v", err)
 		}
-		insertUser(t, "u1", "alice")
+		insertUser := func(id, name string) error { return InsertUser(ctx, pgC.Pool, id, name, true) }
+		if err := insertUser("u1", "alice"); err != nil {
+			t.Fatalf("insert user: %v", err)
+		}
 		if err := repo.AddMember(ctx, team.ID, "u1"); err != nil {
 			t.Fatalf("AddMember: %v", err)
 		}
-		// verify relation
-		row := pgC.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM team_members WHERE team_id = $1 AND user_id = $2`, team.ID, "u1")
-		var cnt int
-		if err := row.Scan(&cnt); err != nil {
-			t.Fatalf("count scan: %v", err)
+		members, err := GetTeamMemberIDs(ctx, pgC.Pool, team.ID)
+		if err != nil {
+			t.Fatalf("GetTeamMemberIDs: %v", err)
 		}
-		if cnt != 1 {
-			t.Fatalf("expected relation count=1 got %d", cnt)
+		if len(members) != 1 || members[0] != "u1" {
+			t.Fatalf("expected single member u1 got %v", members)
 		}
 	})
 
@@ -171,7 +165,10 @@ func TestTeamRepository_Integration(t *testing.T) {
 		if err := repo.CreateTeam(ctx, team); err != nil {
 			t.Fatalf("create team: %v", err)
 		}
-		insertUser(t, "u1", "alice")
+		insertUser := func(id, name string) error { return InsertUser(ctx, pgC.Pool, id, name, true) }
+		if err := insertUser("u1", "alice"); err != nil {
+			t.Fatalf("insert user: %v", err)
+		}
 		if err := repo.AddMember(ctx, team.ID, "u1"); err != nil {
 			t.Fatalf("first add: %v", err)
 		}
@@ -199,7 +196,10 @@ func TestTeamRepository_Integration(t *testing.T) {
 		if err := TruncateAll(ctx, pgC.Pool); err != nil {
 			t.Fatalf("truncate failed: %v", err)
 		}
-		insertUser(t, "u1", "alice")
+		insertUser := func(id, name string) error { return InsertUser(ctx, pgC.Pool, id, name, true) }
+		if err := insertUser("u1", "alice"); err != nil {
+			t.Fatalf("insert user: %v", err)
+		}
 		err := repo.AddMember(ctx, uuid.New(), "u1")
 		if err == nil || err != utils.ErrTeamNotFound {
 			t.Fatalf("expected ErrTeamNotFound got %v", err)
@@ -214,20 +214,22 @@ func TestTeamRepository_Integration(t *testing.T) {
 		if err := repo.CreateTeam(ctx, team); err != nil {
 			t.Fatalf("create team: %v", err)
 		}
-		insertUser(t, "u1", "alice")
+		insertUser := func(id, name string) error { return InsertUser(ctx, pgC.Pool, id, name, true) }
+		if err := insertUser("u1", "alice"); err != nil {
+			t.Fatalf("insert user: %v", err)
+		}
 		if err := repo.AddMember(ctx, team.ID, "u1"); err != nil {
 			t.Fatalf("add member: %v", err)
 		}
 		if err := repo.RemoveMember(ctx, team.ID, "u1"); err != nil {
 			t.Fatalf("remove: %v", err)
 		}
-		row := pgC.Pool.QueryRow(ctx, `SELECT COUNT(*) FROM team_members WHERE team_id = $1 AND user_id = $2`, team.ID, "u1")
-		var cnt int
-		if err := row.Scan(&cnt); err != nil {
-			t.Fatalf("count scan: %v", err)
+		members, err := GetTeamMemberIDs(ctx, pgC.Pool, team.ID)
+		if err != nil {
+			t.Fatalf("GetTeamMemberIDs: %v", err)
 		}
-		if cnt != 0 {
-			t.Fatalf("expected 0 relations got %d", cnt)
+		if len(members) != 0 {
+			t.Fatalf("expected 0 members got %v", members)
 		}
 	})
 
@@ -239,7 +241,10 @@ func TestTeamRepository_Integration(t *testing.T) {
 		if err := repo.CreateTeam(ctx, team); err != nil {
 			t.Fatalf("create team: %v", err)
 		}
-		insertUser(t, "u1", "alice")
+		insertUser := func(id, name string) error { return InsertUser(ctx, pgC.Pool, id, name, true) }
+		if err := insertUser("u1", "alice"); err != nil {
+			t.Fatalf("insert user: %v", err)
+		}
 		err := repo.RemoveMember(ctx, team.ID, "u1")
 		if err == nil || err != utils.ErrNotFound {
 			t.Fatalf("expected ErrNotFound got %v", err)
