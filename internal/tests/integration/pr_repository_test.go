@@ -279,7 +279,6 @@ func TestPRRepository_Integration(t *testing.T) {
 		if len(list) != 2 {
 			t.Fatalf("expected 2 got %d", len(list))
 		}
-		// merge one and filter
 		mergedAt := time.Now()
 		if err := repo.UpdateStatus(ctx, "pr-1", models.PRStatusMERGED, &mergedAt); err != nil {
 			t.Fatalf("merge: %v", err)

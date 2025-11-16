@@ -186,23 +186,13 @@ func (r *PRRepository) AddReviewer(ctx context.Context, prID string, reviewerID 
 			case "23505":
 				return utils.ErrReviewerAlreadyAssigned
 			case "23503":
-				cn := pgErr.ConstraintName
-				switch cn {
+				switch pgErr.ConstraintName {
 				case "pr_reviewers_pr_id_fkey":
 					return utils.ErrPRNotFound
 				case "pr_reviewers_reviewer_id_fkey":
 					return utils.ErrUserNotFound
 				default:
-
-					l := strings.ToLower(cn)
-					if strings.HasSuffix(l, "_fkey") {
-						if strings.Contains(l, "pr_id") || strings.Contains(l, "prs") || strings.Contains(l, "pull") {
-							return utils.ErrPRNotFound
-						}
-						if strings.Contains(l, "reviewer_id") || strings.Contains(l, "user") {
-							return utils.ErrUserNotFound
-						}
-					}
+					r.log.Error("AddReviewer unexpected FK constraint", "constraint", pgErr.ConstraintName, "pr_id", prID, "reviewer_id", reviewerID)
 					return utils.ErrInvalidArgument
 				}
 			case "22P02":
@@ -282,17 +272,23 @@ func (r *PRRepository) ListPRsByReviewer(ctx context.Context, reviewerID string,
 		FROM prs p
 		JOIN pr_reviewers r_filter ON p.id = r_filter.pr_id AND r_filter.reviewer_id = @reviewer_id
 		LEFT JOIN pr_reviewers r_all ON p.id = r_all.pr_id`
+
+	var whereClauses []string
 	if status != nil {
-		base += ` WHERE p.status = @status`
+		whereClauses = append(whereClauses, "p.status = @status")
 	}
-	base += ` GROUP BY p.id, p.title, p.author_id, p.status, p.created_at, p.merged_at, p.updated_at
+	query := base
+	if len(whereClauses) > 0 {
+		query += " WHERE " + strings.Join(whereClauses, " AND ")
+	}
+	query += ` GROUP BY p.id, p.title, p.author_id, p.status, p.created_at, p.merged_at, p.updated_at
 		ORDER BY p.created_at DESC;`
 
 	args := pgx.NamedArgs{"reviewer_id": reviewerID}
 	if status != nil {
 		args["status"] = *status
 	}
-	rows, err := r.querier.Query(ctx, base, args)
+	rows, err := r.querier.Query(ctx, query, args)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "22P02" {
