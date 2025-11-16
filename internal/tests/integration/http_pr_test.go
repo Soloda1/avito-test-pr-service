@@ -83,7 +83,11 @@ func TestPRHandlers_HTTPIntegration(t *testing.T) {
 		if err != nil {
 			t.Fatalf("post: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				t.Logf("body close: %v", err)
+			}
+		}()
 		if resp.StatusCode != http.StatusCreated {
 			t.Fatalf("want 201 got %d", resp.StatusCode)
 		}
@@ -120,12 +124,18 @@ func TestPRHandlers_HTTPIntegration(t *testing.T) {
 		teamID := insertTeamHTTP(t, "core")
 		addMemberHTTP(t, teamID, "u1")
 		first, _ := postJSONPR(baseURL, "/pullRequest/create", map[string]any{"pull_request_id": "pr-dup", "pull_request_name": "t", "author_id": "u1"})
-		first.Body.Close()
+		if err := first.Body.Close(); err != nil {
+			t.Fatalf("close first body: %v", err)
+		}
 		second, err := postJSONPR(baseURL, "/pullRequest/create", map[string]any{"pull_request_id": "pr-dup", "pull_request_name": "t", "author_id": "u1"})
 		if err != nil {
 			t.Fatalf("post: %v", err)
 		}
-		defer second.Body.Close()
+		defer func() {
+			if err := second.Body.Close(); err != nil {
+				t.Logf("body close: %v", err)
+			}
+		}()
 		if second.StatusCode != http.StatusConflict {
 			t.Fatalf("want 409 got %d", second.StatusCode)
 		}
@@ -139,7 +149,11 @@ func TestPRHandlers_HTTPIntegration(t *testing.T) {
 		if err != nil {
 			t.Fatalf("post: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				t.Logf("body close: %v", err)
+			}
+		}()
 		if resp.StatusCode != http.StatusNotFound {
 			t.Fatalf("want 404 got %d", resp.StatusCode)
 		}
@@ -153,12 +167,18 @@ func TestPRHandlers_HTTPIntegration(t *testing.T) {
 		teamID := insertTeamHTTP(t, "core")
 		addMemberHTTP(t, teamID, "u1")
 		createResp, _ := postJSONPR(baseURL, "/pullRequest/create", map[string]any{"pull_request_id": "pr-m", "pull_request_name": "t", "author_id": "u1"})
-		createResp.Body.Close()
+		if err := createResp.Body.Close(); err != nil {
+			t.Fatalf("close createResp body: %v", err)
+		}
 		mergeResp, err := postJSONPR(baseURL, "/pullRequest/merge", map[string]any{"pull_request_id": "pr-m"})
 		if err != nil {
 			t.Fatalf("merge post: %v", err)
 		}
-		defer mergeResp.Body.Close()
+		defer func() {
+			if err := mergeResp.Body.Close(); err != nil {
+				t.Logf("body close: %v", err)
+			}
+		}()
 		if mergeResp.StatusCode != http.StatusOK {
 			t.Fatalf("want 200 got %d", mergeResp.StatusCode)
 		}
@@ -184,7 +204,11 @@ func TestPRHandlers_HTTPIntegration(t *testing.T) {
 		if err != nil {
 			t.Fatalf("post: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				t.Logf("body close: %v", err)
+			}
+		}()
 		if resp.StatusCode != http.StatusNotFound {
 			t.Fatalf("want 404 got %d", resp.StatusCode)
 		}
@@ -202,7 +226,9 @@ func TestPRHandlers_HTTPIntegration(t *testing.T) {
 		addMemberHTTP(t, teamID, "u2")
 		addMemberHTTP(t, teamID, "u3")
 		createResp, _ := postJSONPR(baseURL, "/pullRequest/create", map[string]any{"pull_request_id": "pr-r", "pull_request_name": "t", "author_id": "u1"})
-		createResp.Body.Close()
+		if err := createResp.Body.Close(); err != nil {
+			t.Fatalf("close createResp body: %v", err)
+		}
 
 		_, err := pgC.Pool.Exec(testCtx, `UPDATE users SET is_active=true WHERE id='u3'`)
 		if err != nil {
@@ -213,7 +239,11 @@ func TestPRHandlers_HTTPIntegration(t *testing.T) {
 		if err != nil {
 			t.Fatalf("post: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				t.Logf("body close: %v", err)
+			}
+		}()
 		if resp.StatusCode != http.StatusOK {
 			t.Fatalf("want 200 got %d", resp.StatusCode)
 		}
@@ -257,7 +287,11 @@ func TestPRHandlers_HTTPIntegration(t *testing.T) {
 		if err != nil {
 			t.Fatalf("post: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				t.Logf("body close: %v", err)
+			}
+		}()
 		if resp.StatusCode != http.StatusNotFound {
 			t.Fatalf("want 404 got %d", resp.StatusCode)
 		}
@@ -271,12 +305,18 @@ func TestPRHandlers_HTTPIntegration(t *testing.T) {
 		teamID := insertTeamHTTP(t, "core")
 		addMemberHTTP(t, teamID, "u1")
 		createResp, _ := postJSONPR(baseURL, "/pullRequest/create", map[string]any{"pull_request_id": "pr-z", "pull_request_name": "t", "author_id": "u1"})
-		createResp.Body.Close()
+		if err := createResp.Body.Close(); err != nil {
+			t.Fatalf("close createResp body: %v", err)
+		}
 		resp, err := postJSONPR(baseURL, "/pullRequest/reassign", map[string]any{"pull_request_id": "pr-z", "old_user_id": "uX"})
 		if err != nil {
 			t.Fatalf("post: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				t.Logf("body close: %v", err)
+			}
+		}()
 		if resp.StatusCode != http.StatusConflict {
 			t.Fatalf("want 409 got %d", resp.StatusCode)
 		}
@@ -292,15 +332,23 @@ func TestPRHandlers_HTTPIntegration(t *testing.T) {
 		addMemberHTTP(t, teamID, "u1")
 		addMemberHTTP(t, teamID, "u2")
 		createResp, _ := postJSONPR(baseURL, "/pullRequest/create", map[string]any{"pull_request_id": "pr-mg", "pull_request_name": "t", "author_id": "u1"})
-		createResp.Body.Close()
+		if err := createResp.Body.Close(); err != nil {
+			t.Fatalf("close createResp body: %v", err)
+		}
 
 		mergeResp, _ := postJSONPR(baseURL, "/pullRequest/merge", map[string]any{"pull_request_id": "pr-mg"})
-		mergeResp.Body.Close()
+		if err := mergeResp.Body.Close(); err != nil {
+			t.Fatalf("close mergeResp body: %v", err)
+		}
 		resp, err := postJSONPR(baseURL, "/pullRequest/reassign", map[string]any{"pull_request_id": "pr-mg", "old_user_id": "u2"})
 		if err != nil {
 			t.Fatalf("post: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				t.Logf("body close: %v", err)
+			}
+		}()
 		if resp.StatusCode != http.StatusConflict {
 			t.Fatalf("want 409 got %d", resp.StatusCode)
 		}
@@ -316,12 +364,18 @@ func TestPRHandlers_HTTPIntegration(t *testing.T) {
 		addMemberHTTP(t, teamID, "u1")
 		addMemberHTTP(t, teamID, "u2")
 		createResp, _ := postJSONPR(baseURL, "/pullRequest/create", map[string]any{"pull_request_id": "pr-nc", "pull_request_name": "t", "author_id": "u1"})
-		createResp.Body.Close()
+		if err := createResp.Body.Close(); err != nil {
+			t.Fatalf("close createResp body: %v", err)
+		}
 		resp, err := postJSONPR(baseURL, "/pullRequest/reassign", map[string]any{"pull_request_id": "pr-nc", "old_user_id": "u2"})
 		if err != nil {
 			t.Fatalf("post: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				t.Logf("body close: %v", err)
+			}
+		}()
 		if resp.StatusCode != http.StatusConflict {
 			t.Fatalf("want 409 got %d", resp.StatusCode)
 		}
@@ -332,7 +386,11 @@ func TestPRHandlers_HTTPIntegration(t *testing.T) {
 		if err != nil {
 			t.Fatalf("post: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				t.Logf("body close: %v", err)
+			}
+		}()
 		if resp.StatusCode != http.StatusBadRequest {
 			t.Fatalf("want 400 got %d", resp.StatusCode)
 		}
@@ -342,7 +400,11 @@ func TestPRHandlers_HTTPIntegration(t *testing.T) {
 		if err != nil {
 			t.Fatalf("post: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				t.Logf("body close: %v", err)
+			}
+		}()
 		if resp.StatusCode != http.StatusBadRequest {
 			t.Fatalf("want 400 got %d", resp.StatusCode)
 		}
@@ -352,7 +414,11 @@ func TestPRHandlers_HTTPIntegration(t *testing.T) {
 		if err != nil {
 			t.Fatalf("post: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				t.Logf("body close: %v", err)
+			}
+		}()
 		if resp.StatusCode != http.StatusBadRequest {
 			t.Fatalf("want 400 got %d", resp.StatusCode)
 		}
@@ -374,7 +440,11 @@ func TestPRHandlers_HTTPIntegration(t *testing.T) {
 		if err != nil {
 			t.Fatalf("post: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				t.Logf("body close: %v", err)
+			}
+		}()
 		if resp.StatusCode != http.StatusCreated {
 			t.Fatalf("want 201 got %d", resp.StatusCode)
 		}
@@ -435,7 +505,9 @@ func TestPRHandlers_HTTPIntegration(t *testing.T) {
 		if err != nil {
 			t.Fatalf("create post: %v", err)
 		}
-		createResp.Body.Close()
+		if err := createResp.Body.Close(); err != nil {
+			t.Fatalf("close createResp body: %v", err)
+		}
 		// First merge
 		firstMergeResp, err := postJSONPR(baseURL, "/pullRequest/merge", map[string]any{"pull_request_id": "pr-idem"})
 		if err != nil {
@@ -453,7 +525,9 @@ func TestPRHandlers_HTTPIntegration(t *testing.T) {
 		if err := json.NewDecoder(firstMergeResp.Body).Decode(&firstPayload); err != nil {
 			t.Fatalf("decode first merge: %v", err)
 		}
-		firstMergeResp.Body.Close()
+		if err := firstMergeResp.Body.Close(); err != nil {
+			t.Fatalf("close firstMergeResp body: %v", err)
+		}
 		if firstPayload.PR.Status != "MERGED" || firstPayload.PR.MergedAt == nil {
 			t.Fatalf("first merge invalid payload %+v", firstPayload)
 		}
@@ -477,7 +551,11 @@ func TestPRHandlers_HTTPIntegration(t *testing.T) {
 		if err != nil {
 			t.Fatalf("second merge post: %v", err)
 		}
-		defer secondMergeResp.Body.Close()
+		defer func() {
+			if err := secondMergeResp.Body.Close(); err != nil {
+				t.Logf("body close: %v", err)
+			}
+		}()
 		if secondMergeResp.StatusCode != http.StatusOK {
 			t.Fatalf("second merge status want 200 got %d", secondMergeResp.StatusCode)
 		}
@@ -490,7 +568,9 @@ func TestPRHandlers_HTTPIntegration(t *testing.T) {
 		if err := json.NewDecoder(secondMergeResp.Body).Decode(&secondPayload); err != nil {
 			t.Fatalf("decode second merge: %v", err)
 		}
-		secondMergeResp.Body.Close()
+		if err := secondMergeResp.Body.Close(); err != nil {
+			t.Fatalf("close secondMergeResp body: %v", err)
+		}
 		if secondPayload.PR.Status != "MERGED" || secondPayload.PR.MergedAt == nil {
 			t.Fatalf("second merge invalid payload %+v", secondPayload)
 		}

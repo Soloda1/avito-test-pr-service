@@ -226,11 +226,14 @@ func TestTeamService_Integration(t *testing.T) {
 			t.Fatalf("truncate: %v", err)
 		}
 		svc := newTeamService()
-		InsertUser(ctx, pgC.Pool, "u-bob", "Bob", false)
+		err := InsertUser(ctx, pgC.Pool, "u-bob", "Bob", false)
+		if err != nil {
+			t.Fatalf("insert user error: %v", err)
+		}
 		members := []*models.User{
 			{ID: "u-alice", Name: "Alice", IsActive: true},
-			{ID: "u-bob", Name: "BobNew", IsActive: true},  // обновим существующего
-			{ID: "u-alice", Name: "Alice", IsActive: true}, // повторная попытка — должна быть идемпотной на связке
+			{ID: "u-bob", Name: "BobNew", IsActive: true},
+			{ID: "u-alice", Name: "Alice", IsActive: true},
 		}
 		team, users, err := svc.CreateTeamWithMembers(ctx, "backend", members)
 		if err != nil {

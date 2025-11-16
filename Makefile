@@ -73,12 +73,19 @@ migrate-down: check-go-version
 	@go run $(MIGRATOR_MAIN) -command down
 
 up:
+	@echo "🚦 Проверка стиля и тестов перед запуском docker-compose..."
+	@gofmt -s -w .
+	@go fmt ./...
+	@go vet ./...
+	@golangci-lint run
+	@go test ./... -v -count=1
 	@echo "🚀 docker-compose up -d"
 	@docker compose -f $(DOCKER_COMPOSE_FILE) up -d --build
 	@until docker exec $(PSQL_CONTAINER) pg_isready -U $(DB_USER) -p $(DB_PORT); do \
     		echo "⏳ Ждем готовности Postgres..."; \
     		sleep 1; \
     	done
+
 down:
 	@echo "🛑 docker-compose down"
 	@docker compose -f $(DOCKER_COMPOSE_FILE) down
@@ -99,9 +106,13 @@ psql:
 	@echo "💾 Подключение psql..."
 	@docker exec -it $(PSQL_CONTAINER) psql -U $(DB_USER) -d $(DB_NAME)
 
-test: check-go-version
-	@echo "🧪 Запуск тестов..."
-	@go test $(TEST_FLAGS) ./...
+test:
+	@echo "Запуск всех тестов (unit + integration)..."
+	go test ./... -v -count=1
+
+test-integration:
+	@echo "Запуск интеграционных тестов..."
+	go test ./internal/tests/integration -v -count=1
 
 test-race: check-go-version
 	@echo "🧪 Запуск тестов (race)..."
