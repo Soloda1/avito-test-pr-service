@@ -157,3 +157,16 @@ func AddPRReviewer(ctx context.Context, pool *pgxpool.Pool, prID, reviewerID str
 	_, err := pool.Exec(ctx, `INSERT INTO pr_reviewers(pr_id, reviewer_id, assigned_at) VALUES ($1,$2,now())`, prID, reviewerID)
 	return err
 }
+
+func UpdateUserActive(ctx context.Context, pool *pgxpool.Pool, userID string, active bool) error {
+	_, err := pool.Exec(ctx, `UPDATE users SET is_active=$2, updated_at=now() WHERE id=$1`, userID, active)
+	return err
+}
+
+func UpdateUsersActive(ctx context.Context, pool *pgxpool.Pool, userIDs []string, active bool) error {
+	if len(userIDs) == 0 {
+		return nil
+	}
+	_, err := pool.Exec(ctx, `UPDATE users SET is_active=$2, updated_at=now() WHERE id = ANY($1)`, userIDs, active)
+	return err
+}
