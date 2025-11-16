@@ -22,14 +22,6 @@ func newTeamService() *teamapp.Service {
 func TestTeamService_Integration(t *testing.T) {
 	ctx := testCtx
 
-	insertUser := func(t *testing.T, id, name string, active bool) {
-		t.Helper()
-		_, err := pgC.Pool.Exec(ctx, `INSERT INTO users(id, name, is_active, created_at, updated_at) VALUES ($1,$2,$3,now(),now())`, id, name, active)
-		if err != nil {
-			t.Fatalf("insert user: %v", err)
-		}
-	}
-
 	t.Run("CreateTeam happy", func(t *testing.T) {
 		if err := TruncateAll(ctx, pgC.Pool); err != nil {
 			t.Fatalf("truncate: %v", err)
@@ -65,7 +57,9 @@ func TestTeamService_Integration(t *testing.T) {
 			t.Fatalf("create team: %v", err)
 		}
 		uid := uuid.New()
-		insertUser(t, uid.String(), "alice", true)
+		if err := InsertUser(ctx, pgC.Pool, uid.String(), "alice", true); err != nil {
+			t.Fatalf("insert user: %v", err)
+		}
 		if err := svc.AddMember(ctx, team.ID, uid); err != nil {
 			t.Fatalf("AddMember: %v", err)
 		}
@@ -89,7 +83,9 @@ func TestTeamService_Integration(t *testing.T) {
 			t.Fatalf("create team: %v", err)
 		}
 		uid := uuid.New()
-		insertUser(t, uid.String(), "alice", true)
+		if err := InsertUser(ctx, pgC.Pool, uid.String(), "alice", true); err != nil {
+			t.Fatalf("insert user: %v", err)
+		}
 		if err := svc.AddMember(ctx, team.ID, uid); err != nil {
 			t.Fatalf("first add: %v", err)
 		}
@@ -120,7 +116,9 @@ func TestTeamService_Integration(t *testing.T) {
 		}
 		svc := newTeamService()
 		uid := uuid.New()
-		insertUser(t, uid.String(), "alice", true)
+		if err := InsertUser(ctx, pgC.Pool, uid.String(), "alice", true); err != nil {
+			t.Fatalf("insert user: %v", err)
+		}
 		err := svc.AddMember(ctx, uuid.New(), uid)
 		if err == nil || !errors.Is(err, utils.ErrTeamNotFound) {
 			t.Fatalf("want ErrTeamNotFound got %v", err)
@@ -137,7 +135,9 @@ func TestTeamService_Integration(t *testing.T) {
 			t.Fatalf("create team: %v", err)
 		}
 		uid := uuid.New()
-		insertUser(t, uid.String(), "alice", true)
+		if err := InsertUser(ctx, pgC.Pool, uid.String(), "alice", true); err != nil {
+			t.Fatalf("insert user: %v", err)
+		}
 		if err := svc.AddMember(ctx, team.ID, uid); err != nil {
 			t.Fatalf("add member: %v", err)
 		}
@@ -164,7 +164,9 @@ func TestTeamService_Integration(t *testing.T) {
 			t.Fatalf("create team: %v", err)
 		}
 		uid := uuid.New()
-		insertUser(t, uid.String(), "alice", true)
+		if err := InsertUser(ctx, pgC.Pool, uid.String(), "alice", true); err != nil {
+			t.Fatalf("insert user: %v", err)
+		}
 		err = svc.RemoveMember(ctx, team.ID, uid)
 		if err == nil || !errors.Is(err, utils.ErrNotFound) {
 			t.Fatalf("want ErrNotFound got %v", err)
@@ -224,11 +226,11 @@ func TestTeamService_Integration(t *testing.T) {
 			t.Fatalf("truncate: %v", err)
 		}
 		svc := newTeamService()
-		insertUser(t, "u-bob", "Bob", false)
+		InsertUser(ctx, pgC.Pool, "u-bob", "Bob", false)
 		members := []*models.User{
 			{ID: "u-alice", Name: "Alice", IsActive: true},
 			{ID: "u-bob", Name: "BobNew", IsActive: true},  // обновим существующего
-			{ID: "u-alice", Name: "Alice", IsActive: true}, // повторная попытка — должна быть идемпотентной на связке
+			{ID: "u-alice", Name: "Alice", IsActive: true}, // повторная попытка — должна быть идемпотной на связке
 		}
 		team, users, err := svc.CreateTeamWithMembers(ctx, "backend", members)
 		if err != nil {
