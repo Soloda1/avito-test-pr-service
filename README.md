@@ -34,14 +34,6 @@ curl http://localhost:8080/ping
 # {"status":"ok"}
 ```
 
-## Локальный запуск без Docker
-Нужен запущенный PostgreSQL и корректный `config/config.yml`.
-
-```bash
-make migrate-up       # применить миграции через локальный мигратор
-make run              # запустить HTTP-сервер на 8080
-```
-
 ## Конфигурация
 Файлы: `config/config.yml` (prod/dev) и `config/example.yml`.
 
