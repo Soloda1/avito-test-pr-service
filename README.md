@@ -88,7 +88,7 @@ UoW (Unit of Work) — обеспечивает транзакции: Begin/Comm
 - Маппинг HTTP-кодов в кодовые строки — `utils.HTTPStatusToCode`
 - Логирование на уровне repo/service/handler (ошибки и ключевые поля: pr_id, user_id, team_id, и т.п.)
 
-## Makefile цели
+## Makefile
 ```bash
 make help           # список целей
 make fmt            # форматирование
