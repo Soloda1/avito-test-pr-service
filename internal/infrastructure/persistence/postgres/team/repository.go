@@ -8,7 +8,6 @@ import (
 	"avito-test-pr-service/internal/utils"
 	"context"
 	"errors"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -127,38 +126,34 @@ func (r *TeamRepository) AddMember(ctx context.Context, teamID uuid.UUID, userID
 	const q = `
 		INSERT INTO team_members (team_id, user_id)
 		VALUES (@team_id, @user_id)
-		RETURNING team_id;
+		ON CONFLICT DO NOTHING;
 	`
-	row := r.querier.QueryRow(ctx, q, pgx.NamedArgs{"team_id": teamID, "user_id": userID})
-	var returnedTeamID uuid.UUID
-	if err := row.Scan(&returnedTeamID); err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return utils.ErrNotFound
-		}
+	tag, err := r.querier.Exec(ctx, q, pgx.NamedArgs{"team_id": teamID, "user_id": userID})
+	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
 			switch pgErr.Code {
-			case "23505":
-				r.log.Error("AddMember unique violation", "code", pgErr.Code, "constraint", pgErr.ConstraintName, "team_id", teamID, "user_id", userID, "err", pgErr)
-				return utils.ErrAlreadyExists
 			case "23503":
-				cn := strings.ToLower(pgErr.ConstraintName)
-				if strings.Contains(cn, "user") {
+				switch pgErr.ConstraintName {
+				case "team_members_user_id_fkey":
 					r.log.Error("AddMember FK violation (user)", "code", pgErr.Code, "constraint", pgErr.ConstraintName, "team_id", teamID, "user_id", userID, "err", pgErr)
 					return utils.ErrUserNotFound
-				}
-				if strings.Contains(cn, "team") {
+				case "team_members_team_id_fkey":
 					r.log.Error("AddMember FK violation (team)", "code", pgErr.Code, "constraint", pgErr.ConstraintName, "team_id", teamID, "user_id", userID, "err", pgErr)
 					return utils.ErrTeamNotFound
+				default:
+					r.log.Error("AddMember FK violation (unknown)", "code", pgErr.Code, "constraint", pgErr.ConstraintName, "team_id", teamID, "user_id", userID, "err", pgErr)
+					return utils.ErrNotFound
 				}
-				r.log.Error("AddMember FK violation (unknown)", "code", pgErr.Code, "constraint", pgErr.ConstraintName, "team_id", teamID, "user_id", userID, "err", pgErr)
-				return utils.ErrNotFound
 			default:
 				r.log.Error("AddMember pg error", "code", pgErr.Code, "constraint", pgErr.ConstraintName, "team_id", teamID, "user_id", userID, "err", pgErr)
 			}
 		}
 		r.log.Error("AddMember failed", "team_id", teamID, "user_id", userID, "err", err)
 		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return utils.ErrAlreadyExists
 	}
 	return nil
 }
