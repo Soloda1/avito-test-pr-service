@@ -38,13 +38,17 @@ services:
     command: ./migrator -command up
 
   test-runner:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: golang:1.24.2-alpine
+    container_name: pr-service-test-runner
+    working_dir: /app
+    volumes:
+      - .:/app
     environment:
       - APP_ENV=testing
     command: ["go", "test", "./..."]
     depends_on:
+      migrator:
+        condition: service_completed_successfully
       pr-service-db:
         condition: service_healthy
     networks:

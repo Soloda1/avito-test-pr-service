@@ -11,7 +11,7 @@ http_server:
 database:
   username: "postgres"
   password: "admin"
-  host: "pr-db"
+  host: "pr-service-db"
   port: "5432"
   db_name: "prservice"
   migrations_path: "./migrations"
