@@ -55,7 +55,11 @@ func TestUserHandlers_HTTPIntegration(t *testing.T) {
 		if err != nil {
 			t.Fatalf("http post: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				t.Fatalf("resp.Body.Close: %v", err)
+			}
+		}()
 		if resp.StatusCode != http.StatusOK {
 			t.Fatalf("status %d", resp.StatusCode)
 		}
@@ -85,7 +89,11 @@ func TestUserHandlers_HTTPIntegration(t *testing.T) {
 		if err != nil {
 			t.Fatalf("http post: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				t.Fatalf("resp.Body.Close: %v", err)
+			}
+		}()
 		if resp.StatusCode != http.StatusNotFound {
 			t.Fatalf("want 404 got %d", resp.StatusCode)
 		}
@@ -97,7 +105,11 @@ func TestUserHandlers_HTTPIntegration(t *testing.T) {
 		if err != nil {
 			t.Fatalf("http post: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				t.Fatalf("resp.Body.Close: %v", err)
+			}
+		}()
 		if resp.StatusCode != http.StatusBadRequest {
 			t.Fatalf("want 400 got %d", resp.StatusCode)
 		}
@@ -139,7 +151,11 @@ func TestUserHandlers_HTTPIntegration(t *testing.T) {
 		if err != nil {
 			t.Fatalf("http get: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				t.Fatalf("resp.Body.Close: %v", err)
+			}
+		}()
 		if resp.StatusCode != http.StatusOK {
 			t.Fatalf("status %d", resp.StatusCode)
 		}
@@ -166,7 +182,11 @@ func TestUserHandlers_HTTPIntegration(t *testing.T) {
 		if err != nil {
 			t.Fatalf("http get: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				t.Fatalf("resp.Body.Close: %v", err)
+			}
+		}()
 		if resp.StatusCode != http.StatusInternalServerError {
 			t.Fatalf("want 500 got %d", resp.StatusCode)
 		}
@@ -190,7 +210,11 @@ func TestUserHandlers_HTTPIntegration(t *testing.T) {
 		if err != nil {
 			t.Fatalf("http get: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				t.Fatalf("resp.Body.Close: %v", err)
+			}
+		}()
 		if resp.StatusCode != http.StatusOK {
 			t.Fatalf("status %d", resp.StatusCode)
 		}

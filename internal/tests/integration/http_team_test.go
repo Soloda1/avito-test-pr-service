@@ -59,7 +59,11 @@ func TestTeamHandlers_HTTPIntegration(t *testing.T) {
 		if err != nil {
 			t.Fatalf("post: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				t.Fatalf("resp.Body.Close: %v", err)
+			}
+		}()
 		if resp.StatusCode != http.StatusCreated {
 			t.Fatalf("want 201 got %d", resp.StatusCode)
 		}
@@ -106,12 +110,20 @@ func TestTeamHandlers_HTTPIntegration(t *testing.T) {
 		if err != nil {
 			t.Fatalf("post1: %v", err)
 		}
-		resp1.Body.Close()
+		defer func() {
+			if err := resp1.Body.Close(); err != nil {
+				t.Fatalf("close resp1 body: %v", err)
+			}
+		}()
 		resp2, err := postJSON("/team/add", req)
 		if err != nil {
 			t.Fatalf("post2: %v", err)
 		}
-		defer resp2.Body.Close()
+		defer func() {
+			if err := resp2.Body.Close(); err != nil {
+				t.Fatalf("close resp2 body: %v", err)
+			}
+		}()
 		if resp2.StatusCode != http.StatusConflict {
 			t.Fatalf("want 409 got %d", resp2.StatusCode)
 		}
@@ -123,7 +135,11 @@ func TestTeamHandlers_HTTPIntegration(t *testing.T) {
 		if err != nil {
 			t.Fatalf("post: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				t.Fatalf("close resp body: %v", err)
+			}
+		}()
 		if resp.StatusCode != http.StatusBadRequest {
 			t.Fatalf("want 400 got %d", resp.StatusCode)
 		}
@@ -137,7 +153,11 @@ func TestTeamHandlers_HTTPIntegration(t *testing.T) {
 		if err != nil {
 			t.Fatalf("get: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				t.Fatalf("close resp body: %v", err)
+			}
+		}()
 		if resp.StatusCode != http.StatusNotFound {
 			t.Fatalf("want 404 got %d", resp.StatusCode)
 		}
@@ -153,13 +173,21 @@ func TestTeamHandlers_HTTPIntegration(t *testing.T) {
 		if err != nil {
 			t.Fatalf("post: %v", err)
 		}
-		resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				t.Fatalf("resp.Body.Close: %v", err)
+			}
+		}()
 
 		getResp, err := http.Get(baseURL + "/team/get?team_name=core")
 		if err != nil {
 			t.Fatalf("get: %v", err)
 		}
-		defer getResp.Body.Close()
+		defer func() {
+			if err := getResp.Body.Close(); err != nil {
+				t.Fatalf("close getResp body: %v", err)
+			}
+		}()
 		if getResp.StatusCode != http.StatusOK {
 			t.Fatalf("want 200 got %d", getResp.StatusCode)
 		}
