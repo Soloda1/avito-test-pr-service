@@ -99,9 +99,13 @@ psql:
 	@echo "💾 Подключение psql..."
 	@docker exec -it $(PSQL_CONTAINER) psql -U $(DB_USER) -d $(DB_NAME)
 
-test: check-go-version
-	@echo "🧪 Запуск тестов..."
-	@go test $(TEST_FLAGS) ./...
+test:
+	@echo "Запуск всех тестов (unit + integration)..."
+	go test ./... -v -count=1
+
+test-integration:
+	@echo "Запуск интеграционных тестов..."
+	go test ./internal/tests/integration -v -count=1
 
 test-race: check-go-version
 	@echo "🧪 Запуск тестов (race)..."
