@@ -8,27 +8,27 @@ import (
 )
 
 var (
-	TestCtx context.Context
-	PGC     *PostgresContainer
+	testCtx context.Context
+	pgC     *PostgresContainer
 )
 
 func TestMain(m *testing.M) {
-	TestCtx = context.Background()
+	testCtx = context.Background()
 	var err error
 
-	PGC, err = StartPostgres(TestCtx)
+	pgC, err = StartPostgres(testCtx)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "start postgres failed: %v\n", err)
 		os.Exit(1)
 	}
 
-	if err := ApplyMigrations(TestCtx, PGC.DSN); err != nil {
+	if err := ApplyMigrations(testCtx, pgC.DSN); err != nil {
 		fmt.Fprintf(os.Stderr, "apply migrations failed: %v\n", err)
-		_ = PGC.Close(TestCtx)
+		_ = pgC.Close(testCtx)
 		os.Exit(1)
 	}
 
 	code := m.Run()
-	_ = PGC.Close(TestCtx)
+	_ = pgC.Close(testCtx)
 	os.Exit(code)
 }
