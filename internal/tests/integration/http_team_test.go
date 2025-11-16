@@ -79,6 +79,22 @@ func TestTeamHandlers_HTTPIntegration(t *testing.T) {
 		if r.Team.TeamName != "core" || len(r.Team.Members) != 2 {
 			t.Fatalf("unexpected resp %+v", r)
 		}
+		rows, err := pgC.Pool.Query(testCtx, `SELECT user_id FROM team_members tm JOIN teams t ON tm.team_id=t.id WHERE t.name='core' ORDER BY user_id`)
+		if err != nil {
+			t.Fatalf("query members: %v", err)
+		}
+		var got []string
+		for rows.Next() {
+			var id string
+			if err := rows.Scan(&id); err != nil {
+				t.Fatalf("scan: %v", err)
+			}
+			got = append(got, id)
+		}
+		rows.Close()
+		if len(got) != 2 || !EqualStringSets(got, []string{"u1", "u2"}) {
+			t.Fatalf("db members mismatch %v", got)
+		}
 	})
 
 	t.Run("AddTeam duplicate -> 409", func(t *testing.T) {

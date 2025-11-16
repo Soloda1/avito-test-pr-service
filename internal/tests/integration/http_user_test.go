@@ -18,7 +18,7 @@ import (
 	"time"
 )
 
-func buildServices(t *testing.T) (input.UserInputPort, input.PRInputPort, input.TeamInputPort) {
+func buildServices() (input.UserInputPort, input.PRInputPort, input.TeamInputPort) {
 	log := logger.New("test")
 	u := uow.NewPostgresUOW(pgC.Pool, log)
 	userSvc := user.NewService(u, log)
@@ -28,47 +28,12 @@ func buildServices(t *testing.T) (input.UserInputPort, input.PRInputPort, input.
 	return userSvc, prSvc, teamSvc
 }
 
-func prepareUser(t *testing.T, id, name string, active bool) {
-	_, err := pgC.Pool.Exec(testCtx, `INSERT INTO users(id, name, is_active, created_at, updated_at) VALUES ($1,$2,$3,now(),now())`, id, name, active)
-	if err != nil {
-		t.Fatalf("insert user: %v", err)
-	}
-}
-
-func prepareTeamWithMembers(t *testing.T, name string, userIDs ...string) string {
-	row := pgC.Pool.QueryRow(testCtx, `INSERT INTO teams(id, name, created_at, updated_at) VALUES (gen_random_uuid(),$1,now(),now()) RETURNING id`, name)
-	var id string
-	if err := row.Scan(&id); err != nil {
-		t.Fatalf("insert team: %v", err)
-	}
-	for _, uid := range userIDs {
-		_, err := pgC.Pool.Exec(testCtx, `INSERT INTO team_members(team_id, user_id) VALUES ($1,$2)`, id, uid)
-		if err != nil {
-			t.Fatalf("insert team member: %v", err)
-		}
-	}
-	return id
-}
-
-func createPR(t *testing.T, prID, authorID, title string, reviewerIDs ...string) {
-	_, err := pgC.Pool.Exec(testCtx, `INSERT INTO prs(id, title, author_id, status, created_at, updated_at) VALUES ($1,$2,$3,'OPEN',now(),now())`, prID, title, authorID)
-	if err != nil {
-		t.Fatalf("insert pr: %v", err)
-	}
-	for _, rid := range reviewerIDs {
-		_, err := pgC.Pool.Exec(testCtx, `INSERT INTO pr_reviewers(pr_id, reviewer_id, assigned_at) VALUES ($1,$2,now())`, prID, rid)
-		if err != nil {
-			t.Fatalf("insert reviewer: %v", err)
-		}
-	}
-}
-
 func TestUserHandlers_HTTPIntegration(t *testing.T) {
 	if pgC == nil {
 		t.Fatal("postgres container not initialized")
 	}
 
-	userSvc, prSvc, teamSvc := buildServices(t)
+	userSvc, prSvc, teamSvc := buildServices()
 	log := logger.New("test")
 	r := apihttp.NewRouter(log, prSvc, teamSvc, userSvc)
 	cfg := &config.Config{HTTPServer: config.HTTPServer{RequestTimeout: 5 * time.Second}}
@@ -82,7 +47,9 @@ func TestUserHandlers_HTTPIntegration(t *testing.T) {
 		if err := TruncateAll(testCtx, pgC.Pool); err != nil {
 			t.Fatalf("truncate: %v", err)
 		}
-		prepareUser(t, "u1", "alice", false)
+		if err := InsertUser(testCtx, pgC.Pool, "u1", "alice", false); err != nil {
+			t.Fatalf("insert user: %v", err)
+		}
 		body, _ := json.Marshal(map[string]any{"user_id": "u1", "is_active": true})
 		resp, err := http.Post(baseURL+"/users/setIsActive", "application/json", bytes.NewReader(body))
 		if err != nil {
@@ -140,11 +107,34 @@ func TestUserHandlers_HTTPIntegration(t *testing.T) {
 		if err := TruncateAll(testCtx, pgC.Pool); err != nil {
 			t.Fatalf("truncate: %v", err)
 		}
-		prepareUser(t, "u1", "alice", true)
-		prepareUser(t, "u2", "bob", true)
-		prepareTeamWithMembers(t, "core", "u1", "u2")
-		createPR(t, "pr-1", "u1", "title1", "u2")
-		createPR(t, "pr-2", "u1", "title2", "u2")
+		if err := InsertUser(testCtx, pgC.Pool, "u1", "alice", true); err != nil {
+			t.Fatalf("insert user: %v", err)
+		}
+		if err := InsertUser(testCtx, pgC.Pool, "u2", "bob", true); err != nil {
+			t.Fatalf("insert user2: %v", err)
+		}
+		teamID, err := InsertTeam(testCtx, pgC.Pool, "core")
+		if err != nil {
+			t.Fatalf("insert team: %v", err)
+		}
+		if err := AddTeamMember(testCtx, pgC.Pool, teamID, "u1"); err != nil {
+			t.Fatalf("add member u1: %v", err)
+		}
+		if err := AddTeamMember(testCtx, pgC.Pool, teamID, "u2"); err != nil {
+			t.Fatalf("add member u2: %v", err)
+		}
+		if err := InsertPR(testCtx, pgC.Pool, "pr-1", "title1", "u1"); err != nil {
+			t.Fatalf("insert pr1: %v", err)
+		}
+		if err := AddPRReviewer(testCtx, pgC.Pool, "pr-1", "u2"); err != nil {
+			t.Fatalf("add reviewer pr1: %v", err)
+		}
+		if err := InsertPR(testCtx, pgC.Pool, "pr-2", "title2", "u1"); err != nil {
+			t.Fatalf("insert pr2: %v", err)
+		}
+		if err := AddPRReviewer(testCtx, pgC.Pool, "pr-2", "u2"); err != nil {
+			t.Fatalf("add reviewer pr2: %v", err)
+		}
 		resp, err := http.Get(baseURL + "/users/getReview?user_id=u2")
 		if err != nil {
 			t.Fatalf("http get: %v", err)
@@ -186,8 +176,16 @@ func TestUserHandlers_HTTPIntegration(t *testing.T) {
 		if err := TruncateAll(testCtx, pgC.Pool); err != nil {
 			t.Fatalf("truncate: %v", err)
 		}
-		prepareUser(t, "u10", "lonely", true)
-		prepareTeamWithMembers(t, "core", "u10")
+		if err := InsertUser(testCtx, pgC.Pool, "u10", "lonely", true); err != nil {
+			t.Fatalf("insert lonely: %v", err)
+		}
+		teamID, err := InsertTeam(testCtx, pgC.Pool, "core")
+		if err != nil {
+			t.Fatalf("insert team: %v", err)
+		}
+		if err := AddTeamMember(testCtx, pgC.Pool, teamID, "u10"); err != nil {
+			t.Fatalf("add member: %v", err)
+		}
 		resp, err := http.Get(baseURL + "/users/getReview?user_id=u10")
 		if err != nil {
 			t.Fatalf("http get: %v", err)
