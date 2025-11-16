@@ -48,8 +48,6 @@ services:
         condition: service_completed_successfully
       pr-service-db:
         condition: service_healthy
-      test-runner:
-        condition: service_completed_successfully
     volumes:
       - ./config:/app/config
     environment:
