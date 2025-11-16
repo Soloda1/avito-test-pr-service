@@ -15,13 +15,6 @@ func TestTeamRepository_Integration(t *testing.T) {
 	log := logger.New("test")
 	repo := teamrepo.NewTeamRepository(pgC.Pool, log)
 
-	truncate := func(t *testing.T) {
-		if _, err := pgC.Pool.Exec(ctx, `TRUNCATE TABLE team_members, prs, pr_reviewers, users, teams RESTART IDENTITY CASCADE;`); err != nil {
-			// fall back (some tables may not exist yet in tests focusing on teams)
-			t.Fatalf("truncate failed: %v", err)
-		}
-	}
-
 	insertUser := func(t *testing.T, id, name string) {
 		_, err := pgC.Pool.Exec(ctx, `INSERT INTO users(id, name, is_active, created_at, updated_at) VALUES ($1, $2, true, now(), now())`, id, name)
 		if err != nil {
@@ -30,7 +23,9 @@ func TestTeamRepository_Integration(t *testing.T) {
 	}
 
 	t.Run("CreateTeam success", func(t *testing.T) {
-		truncate(t)
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate failed: %v", err)
+		}
 		team := &models.Team{Name: "core"}
 		if err := repo.CreateTeam(ctx, team); err != nil {
 			t.Fatalf("CreateTeam: %v", err)
@@ -47,7 +42,9 @@ func TestTeamRepository_Integration(t *testing.T) {
 	})
 
 	t.Run("CreateTeam duplicate name -> ErrAlreadyExists", func(t *testing.T) {
-		truncate(t)
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate failed: %v", err)
+		}
 		team1 := &models.Team{Name: "core"}
 		if err := repo.CreateTeam(ctx, team1); err != nil {
 			t.Fatalf("create first: %v", err)
@@ -60,7 +57,9 @@ func TestTeamRepository_Integration(t *testing.T) {
 	})
 
 	t.Run("CreateTeam invalid arg (empty name)", func(t *testing.T) {
-		truncate(t)
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate failed: %v", err)
+		}
 		team := &models.Team{Name: ""}
 		err := repo.CreateTeam(ctx, team)
 		if err == nil || err != utils.ErrInvalidArgument {
@@ -69,7 +68,9 @@ func TestTeamRepository_Integration(t *testing.T) {
 	})
 
 	t.Run("GetTeamByID success", func(t *testing.T) {
-		truncate(t)
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate failed: %v", err)
+		}
 		team := &models.Team{Name: "backend"}
 		if err := repo.CreateTeam(ctx, team); err != nil {
 			t.Fatalf("create: %v", err)
@@ -84,7 +85,9 @@ func TestTeamRepository_Integration(t *testing.T) {
 	})
 
 	t.Run("GetTeamByID not found -> ErrTeamNotFound", func(t *testing.T) {
-		truncate(t)
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate failed: %v", err)
+		}
 		_, err := repo.GetTeamByID(ctx, uuid.New())
 		if err == nil || err != utils.ErrTeamNotFound {
 			t.Fatalf("expected ErrTeamNotFound, got %v", err)
@@ -92,7 +95,9 @@ func TestTeamRepository_Integration(t *testing.T) {
 	})
 
 	t.Run("GetTeamByName success", func(t *testing.T) {
-		truncate(t)
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate failed: %v", err)
+		}
 		team := &models.Team{Name: "frontend"}
 		if err := repo.CreateTeam(ctx, team); err != nil {
 			t.Fatalf("create: %v", err)
@@ -107,7 +112,9 @@ func TestTeamRepository_Integration(t *testing.T) {
 	})
 
 	t.Run("GetTeamByName not found -> ErrTeamNotFound", func(t *testing.T) {
-		truncate(t)
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate failed: %v", err)
+		}
 		_, err := repo.GetTeamByName(ctx, "absent")
 		if err == nil || err != utils.ErrTeamNotFound {
 			t.Fatalf("expected ErrTeamNotFound, got %v", err)
@@ -115,7 +122,9 @@ func TestTeamRepository_Integration(t *testing.T) {
 	})
 
 	t.Run("ListTeams returns all", func(t *testing.T) {
-		truncate(t)
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate failed: %v", err)
+		}
 		for _, n := range []string{"a", "b", "c"} {
 			team := &models.Team{Name: n}
 			if err := repo.CreateTeam(ctx, team); err != nil {
@@ -132,7 +141,9 @@ func TestTeamRepository_Integration(t *testing.T) {
 	})
 
 	t.Run("AddMember success", func(t *testing.T) {
-		truncate(t)
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate failed: %v", err)
+		}
 		team := &models.Team{Name: "core"}
 		if err := repo.CreateTeam(ctx, team); err != nil {
 			t.Fatalf("create team: %v", err)
@@ -153,7 +164,9 @@ func TestTeamRepository_Integration(t *testing.T) {
 	})
 
 	t.Run("AddMember duplicate -> ErrAlreadyExists", func(t *testing.T) {
-		truncate(t)
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate failed: %v", err)
+		}
 		team := &models.Team{Name: "core"}
 		if err := repo.CreateTeam(ctx, team); err != nil {
 			t.Fatalf("create team: %v", err)
@@ -169,7 +182,9 @@ func TestTeamRepository_Integration(t *testing.T) {
 	})
 
 	t.Run("AddMember user FK violation -> ErrUserNotFound", func(t *testing.T) {
-		truncate(t)
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate failed: %v", err)
+		}
 		team := &models.Team{Name: "core"}
 		if err := repo.CreateTeam(ctx, team); err != nil {
 			t.Fatalf("create team: %v", err)
@@ -181,7 +196,9 @@ func TestTeamRepository_Integration(t *testing.T) {
 	})
 
 	t.Run("AddMember team FK violation -> ErrTeamNotFound", func(t *testing.T) {
-		truncate(t)
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate failed: %v", err)
+		}
 		insertUser(t, "u1", "alice")
 		err := repo.AddMember(ctx, uuid.New(), "u1")
 		if err == nil || err != utils.ErrTeamNotFound {
@@ -190,7 +207,9 @@ func TestTeamRepository_Integration(t *testing.T) {
 	})
 
 	t.Run("RemoveMember success", func(t *testing.T) {
-		truncate(t)
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate failed: %v", err)
+		}
 		team := &models.Team{Name: "core"}
 		if err := repo.CreateTeam(ctx, team); err != nil {
 			t.Fatalf("create team: %v", err)
@@ -213,7 +232,9 @@ func TestTeamRepository_Integration(t *testing.T) {
 	})
 
 	t.Run("RemoveMember not found -> ErrNotFound", func(t *testing.T) {
-		truncate(t)
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate failed: %v", err)
+		}
 		team := &models.Team{Name: "core"}
 		if err := repo.CreateTeam(ctx, team); err != nil {
 			t.Fatalf("create team: %v", err)

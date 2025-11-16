@@ -14,12 +14,6 @@ func TestPRRepository_Integration(t *testing.T) {
 	log := logger.New("test")
 	repo := prrepo.NewPRRepository(pgC.Pool, log)
 
-	truncate := func(t *testing.T) {
-		_, err := pgC.Pool.Exec(ctx, `TRUNCATE TABLE pr_reviewers, prs, team_members, teams, users RESTART IDENTITY CASCADE;`)
-		if err != nil {
-			t.Fatalf("truncate: %v", err)
-		}
-	}
 	insertUser := func(t *testing.T, id, name string, active bool) {
 		_, err := pgC.Pool.Exec(ctx, `INSERT INTO users(id, name, is_active, created_at, updated_at) VALUES ($1,$2,$3,now(),now())`, id, name, active)
 		if err != nil {
@@ -28,7 +22,9 @@ func TestPRRepository_Integration(t *testing.T) {
 	}
 
 	t.Run("CreatePR success with reviewers", func(t *testing.T) {
-		truncate(t)
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate: %v", err)
+		}
 		insertUser(t, "u-author", "author", true)
 		insertUser(t, "u-r1", "r1", true)
 		insertUser(t, "u-r2", "r2", true)
@@ -45,7 +41,9 @@ func TestPRRepository_Integration(t *testing.T) {
 	})
 
 	t.Run("CreatePR duplicate id -> ErrPRExists", func(t *testing.T) {
-		truncate(t)
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate: %v", err)
+		}
 		insertUser(t, "u-author", "author", true)
 		pr1 := &models.PullRequest{ID: "pr-1", Title: "feat", AuthorID: "u-author"}
 		if err := repo.CreatePR(ctx, pr1); err != nil {
@@ -59,7 +57,9 @@ func TestPRRepository_Integration(t *testing.T) {
 	})
 
 	t.Run("CreatePR author FK violation -> ErrUserNotFound", func(t *testing.T) {
-		truncate(t)
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate: %v", err)
+		}
 		pr := &models.PullRequest{ID: "pr-1", Title: "feature", AuthorID: "missing-author"}
 		err := repo.CreatePR(ctx, pr)
 		if err == nil || err != utils.ErrUserNotFound {
@@ -68,7 +68,9 @@ func TestPRRepository_Integration(t *testing.T) {
 	})
 
 	t.Run("CreatePR invalid arg (missing fields)", func(t *testing.T) {
-		truncate(t)
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate: %v", err)
+		}
 		pr := &models.PullRequest{ID: "", Title: "x", AuthorID: "u-author"}
 		err := repo.CreatePR(ctx, pr)
 		if err == nil || err != utils.ErrInvalidArgument {
@@ -77,7 +79,9 @@ func TestPRRepository_Integration(t *testing.T) {
 	})
 
 	t.Run("GetPRByID success", func(t *testing.T) {
-		truncate(t)
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate: %v", err)
+		}
 		insertUser(t, "u-author", "author", true)
 		insertUser(t, "u-r1", "r1", true)
 		pr := &models.PullRequest{ID: "pr-1", Title: "feature", AuthorID: "u-author", ReviewerIDs: []string{"u-r1"}}
@@ -94,7 +98,9 @@ func TestPRRepository_Integration(t *testing.T) {
 	})
 
 	t.Run("GetPRByID not found -> ErrPRNotFound", func(t *testing.T) {
-		truncate(t)
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate: %v", err)
+		}
 		_, err := repo.GetPRByID(ctx, "pr-x")
 		if err == nil || err != utils.ErrPRNotFound {
 			t.Fatalf("expected ErrPRNotFound got %v", err)
@@ -102,7 +108,9 @@ func TestPRRepository_Integration(t *testing.T) {
 	})
 
 	t.Run("AddReviewer success", func(t *testing.T) {
-		truncate(t)
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate: %v", err)
+		}
 		insertUser(t, "u-author", "author", true)
 		insertUser(t, "u-r1", "r1", true)
 		insertUser(t, "u-r2", "r2", true)
@@ -123,7 +131,9 @@ func TestPRRepository_Integration(t *testing.T) {
 	})
 
 	t.Run("AddReviewer too many -> ErrTooManyReviewers", func(t *testing.T) {
-		truncate(t)
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate: %v", err)
+		}
 		insertUser(t, "u-author", "author", true)
 		insertUser(t, "u-r1", "r1", true)
 		insertUser(t, "u-r2", "r2", true)
@@ -139,7 +149,9 @@ func TestPRRepository_Integration(t *testing.T) {
 	})
 
 	t.Run("AddReviewer duplicate -> ErrReviewerAlreadyAssigned", func(t *testing.T) {
-		truncate(t)
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate: %v", err)
+		}
 		insertUser(t, "u-author", "author", true)
 		insertUser(t, "u-r1", "r1", true)
 		pr := &models.PullRequest{ID: "pr-1", Title: "feature", AuthorID: "u-author", ReviewerIDs: []string{"u-r1"}}
@@ -153,7 +165,9 @@ func TestPRRepository_Integration(t *testing.T) {
 	})
 
 	t.Run("AddReviewer user not found -> ErrUserNotFound", func(t *testing.T) {
-		truncate(t)
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate: %v", err)
+		}
 		insertUser(t, "u-author", "author", true)
 		pr := &models.PullRequest{ID: "pr-1", Title: "feature", AuthorID: "u-author"}
 		if err := repo.CreatePR(ctx, pr); err != nil {
@@ -166,7 +180,9 @@ func TestPRRepository_Integration(t *testing.T) {
 	})
 
 	t.Run("AddReviewer PR not found -> ErrPRNotFound", func(t *testing.T) {
-		truncate(t)
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate: %v", err)
+		}
 		insertUser(t, "u-r1", "r1", true)
 		err := repo.AddReviewer(ctx, "pr-no", "u-r1")
 		if err == nil || err != utils.ErrPRNotFound {
@@ -175,7 +191,9 @@ func TestPRRepository_Integration(t *testing.T) {
 	})
 
 	t.Run("RemoveReviewer success", func(t *testing.T) {
-		truncate(t)
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate: %v", err)
+		}
 		insertUser(t, "u-author", "author", true)
 		insertUser(t, "u-r1", "r1", true)
 		pr := &models.PullRequest{ID: "pr-1", Title: "feature", AuthorID: "u-author", ReviewerIDs: []string{"u-r1"}}
@@ -195,7 +213,9 @@ func TestPRRepository_Integration(t *testing.T) {
 	})
 
 	t.Run("RemoveReviewer not assigned -> ErrReviewerNotAssigned", func(t *testing.T) {
-		truncate(t)
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate: %v", err)
+		}
 		insertUser(t, "u-author", "author", true)
 		pr := &models.PullRequest{ID: "pr-1", Title: "feature", AuthorID: "u-author"}
 		if err := repo.CreatePR(ctx, pr); err != nil {
@@ -208,7 +228,9 @@ func TestPRRepository_Integration(t *testing.T) {
 	})
 
 	t.Run("UpdateStatus merge success", func(t *testing.T) {
-		truncate(t)
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate: %v", err)
+		}
 		insertUser(t, "u-author", "author", true)
 		pr := &models.PullRequest{ID: "pr-1", Title: "feature", AuthorID: "u-author"}
 		if err := repo.CreatePR(ctx, pr); err != nil {
@@ -228,7 +250,9 @@ func TestPRRepository_Integration(t *testing.T) {
 	})
 
 	t.Run("UpdateStatus already merged -> ErrAlreadyMerged", func(t *testing.T) {
-		truncate(t)
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate: %v", err)
+		}
 		insertUser(t, "u-author", "author", true)
 		pr := &models.PullRequest{ID: "pr-1", Title: "feature", AuthorID: "u-author"}
 		if err := repo.CreatePR(ctx, pr); err != nil {
@@ -245,7 +269,9 @@ func TestPRRepository_Integration(t *testing.T) {
 	})
 
 	t.Run("UpdateStatus invalid status -> ErrInvalidStatus", func(t *testing.T) {
-		truncate(t)
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate: %v", err)
+		}
 		err := repo.UpdateStatus(ctx, "pr-1", "WRONG", nil)
 		if err == nil || err != utils.ErrInvalidStatus {
 			t.Fatalf("expected ErrInvalidStatus got %v", err)
@@ -253,7 +279,9 @@ func TestPRRepository_Integration(t *testing.T) {
 	})
 
 	t.Run("UpdateStatus PR not found -> ErrPRNotFound", func(t *testing.T) {
-		truncate(t)
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate: %v", err)
+		}
 		err := repo.UpdateStatus(ctx, "pr-no", models.PRStatusMERGED, nil)
 		if err == nil || err != utils.ErrPRNotFound {
 			t.Fatalf("expected ErrPRNotFound got %v", err)
@@ -261,7 +289,9 @@ func TestPRRepository_Integration(t *testing.T) {
 	})
 
 	t.Run("ListPRsByReviewer success and filter", func(t *testing.T) {
-		truncate(t)
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate: %v", err)
+		}
 		insertUser(t, "u-author", "author", true)
 		insertUser(t, "u-r1", "r1", true)
 		pr1 := &models.PullRequest{ID: "pr-1", Title: "f1", AuthorID: "u-author", ReviewerIDs: []string{"u-r1"}}
@@ -294,7 +324,9 @@ func TestPRRepository_Integration(t *testing.T) {
 	})
 
 	t.Run("ListPRsByReviewer empty result", func(t *testing.T) {
-		truncate(t)
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate: %v", err)
+		}
 		insertUser(t, "u-r1", "r1", true)
 		list, err := repo.ListPRsByReviewer(ctx, "u-r1", nil)
 		if err != nil {

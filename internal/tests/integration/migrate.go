@@ -21,7 +21,7 @@ func ApplyMigrations(ctx context.Context, dsn string) error {
 	}
 
 	_, thisFile, _, _ := runtime.Caller(0)
-	baseDir := filepath.Dir(thisFile) // .../internal/tests/integration
+	baseDir := filepath.Dir(thisFile)
 	migrationsPath := filepath.Clean(filepath.Join(baseDir, "../../..", "migrations"))
 	m, err := migrator.NewMigrator(migrationsPath, dsn, log)
 	if err != nil {

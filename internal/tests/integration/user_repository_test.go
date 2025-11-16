@@ -6,6 +6,8 @@ import (
 	userrepo "avito-test-pr-service/internal/infrastructure/persistence/postgres/user"
 	"avito-test-pr-service/internal/utils"
 	"testing"
+
+	"github.com/google/uuid"
 )
 
 func TestUserRepository_Integration(t *testing.T) {
@@ -63,7 +65,7 @@ func TestUserRepository_Integration(t *testing.T) {
 		if err != nil {
 			t.Fatalf("get: %v", err)
 		}
-		if got.IsActive != false || got.Name != "Alice" {
+		if got.IsActive || got.Name != "Alice" {
 			t.Fatalf("unexpected user: %+v", got)
 		}
 	})
@@ -116,7 +118,7 @@ func TestUserRepository_Integration(t *testing.T) {
 		if err != nil {
 			t.Fatalf("GetTeamIDByUserID: %v", err)
 		}
-		if gid.String() == "" {
+		if gid == uuid.Nil {
 			t.Fatalf("empty team id")
 		}
 
