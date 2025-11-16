@@ -334,4 +334,56 @@ func TestPRHandlers_HTTPIntegration(t *testing.T) {
 			t.Fatalf("want 400 got %d", resp.StatusCode)
 		}
 	})
+	t.Run("CreatePR more than 2 candidates -> max 2 assigned", func(t *testing.T) {
+		if err := TruncateAll(testCtx, pgC.Pool); err != nil {
+			t.Fatalf("truncate: %v", err)
+		}
+		insertUserHTTP(t, "u1", "author", true)
+		insertUserHTTP(t, "u2", "rev2", true)
+		insertUserHTTP(t, "u3", "rev3", true)
+		insertUserHTTP(t, "u4", "rev4", true)
+		teamID := insertTeamHTTP(t, "core")
+		addMemberHTTP(t, teamID, "u1")
+		addMemberHTTP(t, teamID, "u2")
+		addMemberHTTP(t, teamID, "u3")
+		addMemberHTTP(t, teamID, "u4")
+		resp, err := postJSONPR(baseURL, "/pullRequest/create", map[string]any{"pull_request_id": "pr-many", "pull_request_name": "title", "author_id": "u1"})
+		if err != nil {
+			t.Fatalf("post: %v", err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusCreated {
+			t.Fatalf("want 201 got %d", resp.StatusCode)
+		}
+		var r struct {
+			PR struct {
+				PullRequestID     string   `json:"pull_request_id"`
+				AssignedReviewers []string `json:"assigned_reviewers"`
+				Status            string   `json:"status"`
+			} `json:"pr"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&r); err != nil {
+			t.Fatalf("decode: %v", err)
+		}
+		if r.PR.PullRequestID != "pr-many" || r.PR.Status != "OPEN" {
+			t.Fatalf("meta mismatch %+v", r)
+		}
+		if len(r.PR.AssignedReviewers) != 2 {
+			t.Fatalf("expected 2 reviewers got %d (%+v)", len(r.PR.AssignedReviewers), r.PR.AssignedReviewers)
+		}
+		allowed := map[string]struct{}{"u2": {}, "u3": {}, "u4": {}}
+		seen := make(map[string]struct{})
+		for _, rv := range r.PR.AssignedReviewers {
+			if rv == "u1" {
+				t.Fatalf("author assigned: %+v", r.PR.AssignedReviewers)
+			}
+			if _, ok := allowed[rv]; !ok {
+				t.Fatalf("unexpected reviewer %s", rv)
+			}
+			if _, dup := seen[rv]; dup {
+				t.Fatalf("duplicate reviewer %s", rv)
+			}
+			seen[rv] = struct{}{}
+		}
+	})
 }
