@@ -37,6 +37,18 @@ services:
       - prnet
     command: ./migrator -command up
 
+  test-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - APP_ENV=testing
+    command: ["go", "test", "./..."]
+    depends_on:
+      - pr-service-db
+    networks:
+      - prnet
+
   pr-service:
     build:
       context: .
@@ -44,6 +56,10 @@ services:
     container_name: pr-service
     depends_on:
       migrator:
+        condition: service_completed_successfully
+      pr-db:
+        condition: service_healthy
+      test-runner:
         condition: service_completed_successfully
     volumes:
       - ./config:/app/config
