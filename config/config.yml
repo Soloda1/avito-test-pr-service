@@ -1,0 +1,17 @@
+env: "dev"
+
+http_server:
+  address: "0.0.0.0"
+  port: 8080
+  read_timeout: 10s
+  write_timeout: 10s
+  idle_timeout: 60s
+  request_timeout: 10s
+
+database:
+  username: "postgres"
+  password: "admin"
+  host: "pr-service-db"
+  port: "5432"
+  db_name: "prservice"
+  migrations_path: "./migrations"
