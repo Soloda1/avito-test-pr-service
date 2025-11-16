@@ -100,6 +100,16 @@ func TestPRHandlers_HTTPIntegration(t *testing.T) {
 		if r.PR.PullRequestID != "pr-1" || r.PR.Status != "OPEN" {
 			t.Fatalf("bad resp %+v", r)
 		}
+		reviewersDB, err := GetPRReviewers(testCtx, pgC.Pool, "pr-1")
+		if err != nil {
+			t.Fatalf("db reviewers: %v", err)
+		}
+		if !EqualStringSets(reviewersDB, r.PR.AssignedReviewers) {
+			t.Fatalf("reviewers mismatch db=%v json=%v", reviewersDB, r.PR.AssignedReviewers)
+		}
+		if HasDuplicates(reviewersDB) {
+			t.Fatalf("duplicates in db reviewers %v", reviewersDB)
+		}
 	})
 
 	t.Run("CreatePR duplicate id -> 409", func(t *testing.T) {
@@ -223,6 +233,19 @@ func TestPRHandlers_HTTPIntegration(t *testing.T) {
 			if rv == "u2" {
 				t.Fatalf("old reviewer still present %+v", r.PR.AssignedReviewers)
 			}
+		}
+		reviewersDB, err := GetPRReviewers(testCtx, pgC.Pool, "pr-r")
+		if err != nil {
+			t.Fatalf("db reviewers: %v", err)
+		}
+		if !EqualStringSets(reviewersDB, r.PR.AssignedReviewers) {
+			t.Fatalf("reviewers mismatch db=%v json=%v", reviewersDB, r.PR.AssignedReviewers)
+		}
+		if HasDuplicates(reviewersDB) {
+			t.Fatalf("duplicates after reassign %v", reviewersDB)
+		}
+		if len(reviewersDB) != len(r.PR.AssignedReviewers) {
+			t.Fatalf("length mismatch db=%d json=%d", len(reviewersDB), len(r.PR.AssignedReviewers))
 		}
 	})
 
@@ -385,63 +408,111 @@ func TestPRHandlers_HTTPIntegration(t *testing.T) {
 			}
 			seen[rv] = struct{}{}
 		}
+		reviewersDB, err := GetPRReviewers(testCtx, pgC.Pool, "pr-many")
+		if err != nil {
+			t.Fatalf("db reviewers: %v", err)
+		}
+		if len(reviewersDB) != 2 {
+			t.Fatalf("db should have 2 reviewers got %d %v", len(reviewersDB), reviewersDB)
+		}
+		if !EqualStringSets(reviewersDB, r.PR.AssignedReviewers) {
+			t.Fatalf("mismatch db=%v json=%v", reviewersDB, r.PR.AssignedReviewers)
+		}
+		if HasDuplicates(reviewersDB) {
+			t.Fatalf("duplicates in db reviewers %v", reviewersDB)
+		}
 	})
 
-	t.Run("MergePR idempotent second call", func(t *testing.T) {
+	t.Run("MergePR idempotent returns same merged_at on second call", func(t *testing.T) {
 		if err := TruncateAll(testCtx, pgC.Pool); err != nil {
 			t.Fatalf("truncate: %v", err)
 		}
 		insertUserHTTP(t, "u1", "author", true)
 		teamID := insertTeamHTTP(t, "core")
 		addMemberHTTP(t, teamID, "u1")
-		createResp, _ := postJSONPR(baseURL, "/pullRequest/create", map[string]any{"pull_request_id": "pr-idem", "pull_request_name": "t", "author_id": "u1"})
+		// Create PR
+		createResp, err := postJSONPR(baseURL, "/pullRequest/create", map[string]any{"pull_request_id": "pr-idem", "pull_request_name": "title", "author_id": "u1"})
+		if err != nil {
+			t.Fatalf("create post: %v", err)
+		}
 		createResp.Body.Close()
-		firstMerge, err := postJSONPR(baseURL, "/pullRequest/merge", map[string]any{"pull_request_id": "pr-idem"})
+		// First merge
+		firstMergeResp, err := postJSONPR(baseURL, "/pullRequest/merge", map[string]any{"pull_request_id": "pr-idem"})
 		if err != nil {
 			t.Fatalf("first merge post: %v", err)
 		}
-		var first struct {
+		if firstMergeResp.StatusCode != http.StatusOK {
+			t.Fatalf("first merge status want 200 got %d", firstMergeResp.StatusCode)
+		}
+		var firstPayload struct {
 			PR struct {
 				Status   string     `json:"status"`
 				MergedAt *time.Time `json:"mergedAt"`
 			} `json:"pr"`
 		}
-		if err := json.NewDecoder(firstMerge.Body).Decode(&first); err != nil {
-			t.Fatalf("decode first: %v", err)
+		if err := json.NewDecoder(firstMergeResp.Body).Decode(&firstPayload); err != nil {
+			t.Fatalf("decode first merge: %v", err)
 		}
-		firstMerge.Body.Close()
-		if first.PR.Status != "MERGED" || first.PR.MergedAt == nil {
-			t.Fatalf("first not merged %+v", first)
+		firstMergeResp.Body.Close()
+		if firstPayload.PR.Status != "MERGED" || firstPayload.PR.MergedAt == nil {
+			t.Fatalf("first merge invalid payload %+v", firstPayload)
 		}
-		mergedAt1 := *first.PR.MergedAt
-		time.Sleep(20 * time.Millisecond)
-
-		secondMerge, err := postJSONPR(baseURL, "/pullRequest/merge", map[string]any{"pull_request_id": "pr-idem"})
+		initialMergedAtJSON := firstPayload.PR.MergedAt.UTC().Truncate(time.Microsecond)
+		// Fetch DB state after first merge
+		statusDB1, mergedAtDB1, err := GetPRStatusMerged(testCtx, pgC.Pool, "pr-idem")
+		if err != nil {
+			t.Fatalf("db fetch after first merge: %v", err)
+		}
+		if statusDB1 != "MERGED" || mergedAtDB1 == nil {
+			t.Fatalf("db state after first merge invalid status=%s mergedAt=%v", statusDB1, mergedAtDB1)
+		}
+		initialMergedAtDB := mergedAtDB1.UTC().Truncate(time.Microsecond)
+		if !initialMergedAtDB.Equal(initialMergedAtJSON) {
+			t.Fatalf("JSON vs DB merged_at differ first merge json=%v db=%v", initialMergedAtJSON, initialMergedAtDB)
+		}
+		// Pause
+		time.Sleep(25 * time.Millisecond)
+		// Second merge (idempotent)
+		secondMergeResp, err := postJSONPR(baseURL, "/pullRequest/merge", map[string]any{"pull_request_id": "pr-idem"})
 		if err != nil {
 			t.Fatalf("second merge post: %v", err)
 		}
-		defer secondMerge.Body.Close()
-		if secondMerge.StatusCode != http.StatusOK {
-			t.Fatalf("second want 200 got %d", secondMerge.StatusCode)
+		defer secondMergeResp.Body.Close()
+		if secondMergeResp.StatusCode != http.StatusOK {
+			t.Fatalf("second merge status want 200 got %d", secondMergeResp.StatusCode)
 		}
-		var second struct {
+		var secondPayload struct {
 			PR struct {
 				Status   string     `json:"status"`
 				MergedAt *time.Time `json:"mergedAt"`
 			} `json:"pr"`
 		}
-		if err := json.NewDecoder(secondMerge.Body).Decode(&second); err != nil {
-			t.Fatalf("decode second: %v", err)
+		if err := json.NewDecoder(secondMergeResp.Body).Decode(&secondPayload); err != nil {
+			t.Fatalf("decode second merge: %v", err)
 		}
-		if second.PR.Status != "MERGED" || second.PR.MergedAt == nil {
-			t.Fatalf("second not merged %+v", second)
+		secondMergeResp.Body.Close()
+		if secondPayload.PR.Status != "MERGED" || secondPayload.PR.MergedAt == nil {
+			t.Fatalf("second merge invalid payload %+v", secondPayload)
 		}
-		mergedAt1Trunc := mergedAt1.UTC().Truncate(time.Microsecond)
-		secondMergedTrunc := second.PR.MergedAt.UTC().Truncate(time.Microsecond)
-		if !secondMergedTrunc.Equal(mergedAt1Trunc) {
-			if secondMergedTrunc.After(mergedAt1Trunc) {
-				t.Fatalf("mergedAt changed (not idempotent) first=%v second=%v", mergedAt1Trunc, secondMergedTrunc)
-			}
+		secondMergedAtJSON := secondPayload.PR.MergedAt.UTC().Truncate(time.Microsecond)
+		// DB state after second merge
+		statusDB2, mergedAtDB2, err := GetPRStatusMerged(testCtx, pgC.Pool, "pr-idem")
+		if err != nil {
+			t.Fatalf("db fetch after second merge: %v", err)
+		}
+		if statusDB2 != "MERGED" || mergedAtDB2 == nil {
+			t.Fatalf("db state second merge invalid status=%s mergedAt=%v", statusDB2, mergedAtDB2)
+		}
+		secondMergedAtDB := mergedAtDB2.UTC().Truncate(time.Microsecond)
+		// Assertions: timestamps unchanged
+		if !secondMergedAtDB.Equal(initialMergedAtDB) {
+			t.Fatalf("DB merged_at changed first=%v second=%v", initialMergedAtDB, secondMergedAtDB)
+		}
+		if !secondMergedAtJSON.Equal(initialMergedAtJSON) {
+			t.Fatalf("JSON merged_at changed first=%v second=%v", initialMergedAtJSON, secondMergedAtJSON)
+		}
+		if !secondMergedAtDB.Equal(secondMergedAtJSON) {
+			t.Fatalf("DB vs JSON differ on second merge db=%v json=%v", secondMergedAtDB, secondMergedAtJSON)
 		}
 	})
 }
