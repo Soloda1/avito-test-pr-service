@@ -41,7 +41,7 @@ curl http://localhost:8080/ping
 - database: host, port, dbname, user, password
 - httpServer: address, port, requestTimeout, readTimeout, writeTimeout, idleTimeout
 
-Таймауты вынесены в конфиг (замечание ревью учтено): настройки применяются в сервере и middleware Timeout.
+Таймауты вынесены в конфиг: настройки применяются в сервере и middleware Timeout.
 
 ## Миграции
 Каталог: `migrations/`
