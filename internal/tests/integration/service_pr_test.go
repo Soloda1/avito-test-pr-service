@@ -349,4 +349,55 @@ func TestPRService_Integration(t *testing.T) {
 			t.Fatalf("expected MERGED, got %v", m.Status)
 		}
 	})
+
+	t.Run("CreatePR duplicate id -> ErrPRExists", func(t *testing.T) {
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate: %v", err)
+		}
+		svc := newPRService()
+		_, _ = pgC.Pool.Exec(ctx, `INSERT INTO users(id, name, is_active, created_at, updated_at) VALUES ($1,$2,$3,now(),now())`, "u1", "author", true)
+		teamID := func() string {
+			row := pgC.Pool.QueryRow(ctx, `INSERT INTO teams(id, name, created_at, updated_at) VALUES (gen_random_uuid(),$1,now(),now()) RETURNING id`, "core")
+			var id string
+			if err := row.Scan(&id); err != nil {
+				t.Fatalf("team: %v", err)
+			}
+			return id
+		}()
+		_, _ = pgC.Pool.Exec(ctx, `INSERT INTO team_members(team_id, user_id) VALUES ($1,$2)`, teamID, "u1")
+		if _, err := svc.CreatePR(ctx, "pr-dup", "u1", "t"); err != nil {
+			t.Fatalf("first create: %v", err)
+		}
+		_, err := svc.CreatePR(ctx, "pr-dup", "u1", "t")
+		if err == nil || !errors.Is(err, utils.ErrPRExists) {
+			t.Fatalf("want ErrPRExists got %v", err)
+		}
+	})
+
+	t.Run("CreatePR author inactive allowed", func(t *testing.T) {
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate: %v", err)
+		}
+		svc := newPRService()
+		_, _ = pgC.Pool.Exec(ctx, `INSERT INTO users(id, name, is_active, created_at, updated_at) VALUES ($1,$2,$3,now(),now())`, "u1", "author", false)
+		_, _ = pgC.Pool.Exec(ctx, `INSERT INTO users(id, name, is_active, created_at, updated_at) VALUES ($1,$2,$3,now(),now())`, "u2", "r1", true)
+		_, _ = pgC.Pool.Exec(ctx, `INSERT INTO users(id, name, is_active, created_at, updated_at) VALUES ($1,$2,$3,now(),now())`, "u3", "r2", true)
+		teamID := func() string {
+			row := pgC.Pool.QueryRow(ctx, `INSERT INTO teams(id, name, created_at, updated_at) VALUES (gen_random_uuid(),$1,now(),now()) RETURNING id`, "core")
+			var id string
+			if err := row.Scan(&id); err != nil {
+				t.Fatalf("team: %v", err)
+			}
+			return id
+		}()
+		_, _ = pgC.Pool.Exec(ctx, `INSERT INTO team_members(team_id, user_id) VALUES ($1,$2),($1,$3),($1,$4)`, teamID, "u1", "u2", "u3")
+		pr, err := svc.CreatePR(ctx, "pr-inactive-author", "u1", "t")
+		if err != nil {
+			t.Fatalf("CreatePR: %v", err)
+		}
+		if pr.AuthorID != "u1" || len(pr.ReviewerIDs) == 0 {
+			t.Fatalf("expected reviewers despite inactive author: %+v", pr)
+		}
+	})
+
 }
