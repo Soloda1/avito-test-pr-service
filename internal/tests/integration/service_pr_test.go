@@ -10,6 +10,7 @@ import (
 	"avito-test-pr-service/internal/infrastructure/reviewerselector"
 	"avito-test-pr-service/internal/utils"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -400,4 +401,206 @@ func TestPRService_Integration(t *testing.T) {
 		}
 	})
 
+	t.Run("CreatePR empty cases errors", func(t *testing.T) {
+		cases := []struct{ name, prID, authorID, title string }{
+			{"CreatePR empty prID -> ErrInvalidArgument", "", "u1", "title"},
+			{"CreatePR empty authorID -> ErrInvalidArgument", "pr-x", "", "title"},
+			{"CreatePR empty title -> ErrInvalidArgument", "pr-x", "u1", ""},
+		}
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				if err := TruncateAll(ctx, pgC.Pool); err != nil {
+					t.Fatalf("truncate: %v", err)
+				}
+				svc := newPRService()
+				_, err := svc.CreatePR(ctx, tc.prID, tc.authorID, tc.title)
+				if err == nil || !errors.Is(err, utils.ErrInvalidArgument) {
+					if err == nil {
+						t.Fatalf("expected error")
+					} else {
+						t.Fatalf("want ErrInvalidArgument got %v", err)
+					}
+				}
+			})
+		}
+	})
+
+	t.Run("CreatePR >2 candidates -> exactly 2 assigned", func(t *testing.T) {
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate: %v", err)
+		}
+		svc := newPRService()
+		for i, active := range []bool{true, true, true, true, true} { // u1..u5
+			id := fmt.Sprintf("u%d", i+1)
+			name := fmt.Sprintf("user%d", i+1)
+			_, err := pgC.Pool.Exec(ctx, `INSERT INTO users(id, name, is_active, created_at, updated_at) VALUES ($1,$2,$3,now(),now())`, id, name, active)
+			if err != nil {
+				t.Fatalf("insert user: %v", err)
+			}
+		}
+		teamID := func() string {
+			row := pgC.Pool.QueryRow(ctx, `INSERT INTO teams(id, name, created_at, updated_at) VALUES (gen_random_uuid(),'core',now(),now()) RETURNING id`)
+			var id string
+			if err := row.Scan(&id); err != nil {
+				t.Fatalf("team: %v", err)
+			}
+			return id
+		}()
+		for i := 1; i <= 5; i++ {
+			_, err := pgC.Pool.Exec(ctx, `INSERT INTO team_members(team_id, user_id) VALUES ($1,$2)`, teamID, fmt.Sprintf("u%d", i))
+			if err != nil {
+				t.Fatalf("member: %v", err)
+			}
+		}
+		pr, err := svc.CreatePR(ctx, "pr-many", "u1", "title")
+		if err != nil {
+			t.Fatalf("CreatePR: %v", err)
+		}
+		if len(pr.ReviewerIDs) != 2 {
+			t.Fatalf("expected 2 reviewers got %d (%+v)", len(pr.ReviewerIDs), pr.ReviewerIDs)
+		}
+		for _, r := range pr.ReviewerIDs {
+			if r == "u1" {
+				t.Fatalf("author assigned")
+			}
+		}
+	})
+
+	t.Run("ReassignReviewer empty error cases", func(t *testing.T) {
+		cases := []struct{ name, prID, old string }{
+			{"ReassignReviewer empty prID -> ErrInvalidArgument", "", "u2"},
+			{"ReassignReviewer empty oldReviewerID -> ErrInvalidArgument", "pr-1", ""},
+		}
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				if err := TruncateAll(ctx, pgC.Pool); err != nil {
+					t.Fatalf("truncate: %v", err)
+				}
+				svc := newPRService()
+				_, err := svc.ReassignReviewer(ctx, tc.prID, tc.old)
+				if err == nil || !errors.Is(err, utils.ErrInvalidArgument) {
+					if err == nil {
+						t.Fatalf("expected error")
+					} else {
+						t.Fatalf("want ErrInvalidArgument got %v", err)
+					}
+				}
+			})
+		}
+	})
+
+	t.Run("MergePR empty id -> ErrInvalidArgument", func(t *testing.T) {
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate: %v", err)
+		}
+		svc := newPRService()
+		_, err := svc.MergePR(ctx, "")
+		if err == nil || !errors.Is(err, utils.ErrInvalidArgument) {
+			if err == nil {
+				t.Fatalf("expected error")
+			} else {
+				t.Fatalf("want ErrInvalidArgument got %v", err)
+			}
+		}
+	})
+
+	t.Run("GetPR happy", func(t *testing.T) {
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate: %v", err)
+		}
+		svc := newPRService()
+		insertUser(t, "u1", "author", true)
+		teamID := insertTeam(t, "core")
+		addMember(t, teamID, "u1")
+		if _, err := svc.CreatePR(ctx, "pr-get", "u1", "title"); err != nil {
+			t.Fatalf("CreatePR: %v", err)
+		}
+		got, err := svc.GetPR(ctx, "pr-get")
+		if err != nil {
+			t.Fatalf("GetPR: %v", err)
+		}
+		if got.ID != "pr-get" || got.AuthorID != "u1" {
+			t.Fatalf("mismatch: %+v", got)
+		}
+	})
+
+	t.Run("GetPR invalid id -> ErrInvalidArgument", func(t *testing.T) {
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate: %v", err)
+		}
+		svc := newPRService()
+		_, err := svc.GetPR(ctx, "")
+		if err == nil || !errors.Is(err, utils.ErrInvalidArgument) {
+			t.Fatalf("want ErrInvalidArgument got %v", err)
+		}
+	})
+
+	t.Run("GetPR not found -> ErrPRNotFound", func(t *testing.T) {
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate: %v", err)
+		}
+		svc := newPRService()
+		_, err := svc.GetPR(ctx, "missing")
+		if err == nil || !errors.Is(err, utils.ErrPRNotFound) {
+			t.Fatalf("want ErrPRNotFound got %v", err)
+		}
+	})
+
+	t.Run("ListPRsByAssignee OPEN filter", func(t *testing.T) {
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate: %v", err)
+		}
+		svc := newPRService()
+		repo := insertPRrepo(t)
+		insertUser(t, "u1", "author", true)
+		insertUser(t, "u2", "rev", true)
+		teamID := insertTeam(t, "core")
+		addMember(t, teamID, "u1")
+		addMember(t, teamID, "u2")
+		prA, err := svc.CreatePR(ctx, "pr-A", "u1", "A")
+		if err != nil {
+			t.Fatalf("create A: %v", err)
+		}
+		prB, err := svc.CreatePR(ctx, "pr-B", "u1", "B")
+		if err != nil {
+			t.Fatalf("create B: %v", err)
+		}
+		for _, pr := range []*models.PullRequest{prA, prB} {
+			assigned := false
+			for _, rid := range pr.ReviewerIDs {
+				if rid == "u2" {
+					assigned = true
+					break
+				}
+			}
+			if !assigned {
+				if err := repo.AddReviewer(ctx, pr.ID, "u2"); err != nil {
+					t.Fatalf("add reviewer: %v", err)
+				}
+			}
+		}
+		now := time.Now()
+		if err := repo.UpdateStatus(ctx, prA.ID, models.PRStatusMERGED, &now); err != nil {
+			t.Fatalf("merge: %v", err)
+		}
+		st := models.PRStatusOPEN
+		list, err := svc.ListPRsByAssignee(ctx, "u2", &st)
+		if err != nil {
+			t.Fatalf("list: %v", err)
+		}
+		if len(list) != 1 || list[0].ID != prB.ID {
+			t.Fatalf("filter OPEN mismatch: %+v", list)
+		}
+	})
+
+	t.Run("ListPRsByAssignee invalid arg -> ErrInvalidArgument", func(t *testing.T) {
+		if err := TruncateAll(ctx, pgC.Pool); err != nil {
+			t.Fatalf("truncate: %v", err)
+		}
+		svc := newPRService()
+		_, err := svc.ListPRsByAssignee(ctx, "", nil)
+		if err == nil || !errors.Is(err, utils.ErrInvalidArgument) {
+			t.Fatalf("want ErrInvalidArgument got %v", err)
+		}
+	})
 }
